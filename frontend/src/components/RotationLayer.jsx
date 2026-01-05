@@ -1,8 +1,6 @@
 "use client";
 
-const MAP_WIDTH = 1000;
-const MAP_HEIGHT = 600;
-const MAP_ASPECT = MAP_WIDTH / MAP_HEIGHT;
+const PLAYER_SIZE = 36;
 
 export default function RotationLayer({
   rotations = [],
@@ -12,33 +10,10 @@ export default function RotationLayer({
   if (!containerSize || !players) return null;
   const safePlayers = Array.isArray(players) ? players : [];
 
-  // ---------- SAME mapRect logic as PlayerLayer ----------
-  const getMapRect = () => {
-    const { width, height } = containerSize;
-    const containerAspect = width / height;
-
-    let drawWidth, drawHeight, offsetX, offsetY;
-
-    if (containerAspect > MAP_ASPECT) {
-      drawHeight = height;
-      drawWidth = height * MAP_ASPECT;
-      offsetX = (width - drawWidth) / 2;
-      offsetY = 0;
-    } else {
-      drawWidth = width;
-      drawHeight = width / MAP_ASPECT;
-      offsetX = 0;
-      offsetY = (height - drawHeight) / 2;
-    }
-
-    return { drawWidth, drawHeight, offsetX, offsetY };
-  };
-
-  const { drawWidth, drawHeight, offsetX, offsetY } = getMapRect();
-
-  const getPos = (p) => ({
-    x: offsetX + (p.x / MAP_WIDTH) * drawWidth,
-    y: offsetY + (p.y / MAP_HEIGHT) * drawHeight
+  // ✅ SAME coordinate logic as PlayerLayer (center-based)
+  const getCenterPos = (p) => ({
+    x: ((p.x + PLAYER_SIZE / 2) / 1000) * containerSize.width,
+    y: ((p.y + PLAYER_SIZE / 2) / 600) * containerSize.height
   });
 
   return (
@@ -71,8 +46,9 @@ export default function RotationLayer({
         const to = safePlayers.find((p) => p.id === r.toId);
         if (!from || !to) return null;
 
-        const start = getPos(from);
-        const end = getPos(to);
+        const start = getCenterPos(from);
+        const end = getCenterPos(to);
+
         const midX = (start.x + end.x) / 2;
         const midY = (start.y + end.y) / 2 - 30;
 
@@ -90,6 +66,7 @@ export default function RotationLayer({
     </svg>
   );
 }
+
 
 
 

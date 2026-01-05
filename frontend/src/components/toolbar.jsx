@@ -15,8 +15,6 @@ export default function Toolbar({
   undo,
   redo,
   currentPhaseMap,
-
-  // Phase UX
   phaseIndex,
   totalPhases,
   phaseName,
@@ -24,118 +22,240 @@ export default function Toolbar({
 }) {
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(phaseName);
+  const [activeTool, setActiveTool] = useState("pen");
+
+  // ✅ SAFE mobile detection (AFTER mount)
   const [isMobile, setIsMobile] = useState(false);
+  const [expanded, setExpanded] = useState(true);
 
   useEffect(() => {
-    const check = () => setIsMobile(window.innerWidth < 768);
-    check();
-    window.addEventListener("resize", check);
-    return () => window.removeEventListener("resize", check);
+    const mobile = window.innerWidth < 768;
+    setIsMobile(mobile);
+    setExpanded(!mobile); // collapsed by default on mobile
   }, []);
 
   return (
-    <div
-      style={{
-        position: "absolute",
-        top: 10,
-        left: 10,
-        zIndex: 20,
-        display: "flex",
-        flexDirection: isMobile ? "column" : "row",
-        gap: 8,
-        padding: 10,
-        background: "rgba(0,0,0,0.75)",
-        borderRadius: 8,
-        maxWidth: isMobile ? "95vw" : "auto"
-      }}
-    >
-      {/* Phase Indicator */}
-      <div style={{ color: "#fff", fontWeight: 600 }}>
-        Phase {phaseIndex + 1} / {totalPhases} —
-        {editing ? (
-          <input
-            value={name}
-            autoFocus
-            onChange={(e) => setName(e.target.value)}
-            onBlur={() => {
-              renamePhase(name);
-              setEditing(false);
-            }}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                renamePhase(name);
-                setEditing(false);
-              }
-            }}
-            style={{ marginLeft: 6 }}
-          />
-        ) : (
-          <span style={{ marginLeft: 6 }}>{phaseName}</span>
-        )}
+    <>
+      {/* 📱 MOBILE EXPAND BUTTON (ALWAYS VISIBLE) */}
+      {isMobile && !expanded && (
         <button
-          onClick={() => {
-            setName(phaseName);
-            setEditing(true);
+          onClick={() => setExpanded(true)}
+          style={{
+            position: "absolute",
+            bottom: 20,
+            left: "50%",
+            transform: "translateX(-50%)",
+            pointerEvents: "auto",
+            zIndex: 30,
+            width: 56,
+            height: 56,
+            borderRadius: 16,
+            background: "#1f222a",
+            color: "#fff",
+            fontSize: 22,
+            border: "1px solid #2f3542",
+            boxShadow: "0 8px 24px rgba(0,0,0,0.5)",
+            cursor: "pointer"
           }}
-          style={{ marginLeft: 6 }}
         >
-          ✏️
+          ⬆️
         </button>
-      </div>
+      )}
 
-      {/* Tool Row */}
-      <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-        <button onClick={() => setTool("pen")}>Pen</button>
-        <button onClick={() => setTool("eraser")}>Eraser</button>
-        <input type="color" onChange={(e) => setColor(e.target.value)} />
-        <button onClick={clearCanvas}>Clear</button>
-        <button onClick={undo}>Undo</button>
-        <button onClick={redo}>Redo</button>
-      </div>
+      {/* 🧰 TOOLBAR */}
+      {(!isMobile || expanded) && (
+        <div
+          style={{
+            position: "absolute",
+            zIndex: 20,
 
-      {/* Control Row */}
-      <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-        <select
-          value={currentPhaseMap}
-          onChange={(e) => onMapChange(e.target.value)}
+            // Desktop vs mobile placement
+            top: isMobile ? "auto" : 16,
+            bottom: isMobile ? 16 : "auto",
+            left: isMobile ? "50%" : 16,
+            transform: isMobile ? "translateX(-50%)" : "none",
+
+            width: isMobile ? "92vw" : 260,
+            maxWidth: 360,
+            padding: 12,
+
+            background: "rgba(18,18,18,0.95)",
+            borderRadius: 16,
+            display: "flex",
+            flexDirection: "column",
+            gap: 10,
+
+            boxShadow: "0 12px 30px rgba(0,0,0,0.5)",
+            fontFamily: "Inter, system-ui, sans-serif"
+          }}
         >
-          <option value="/maps/bermuda.jpg">Bermuda</option>
-          <option value="/maps/purgatory.jpg">Purgatory</option>
-        </select>
+          {/* PHASE HEADER */}
+          <div style={{ color: "#fff", fontWeight: 600, fontSize: 14 }}>
+            Phase {phaseIndex + 1} / {totalPhases}
+            <div style={{ display: "flex", alignItems: "center", marginTop: 4 }}>
+              {editing ? (
+                <input
+                  value={name}
+                  autoFocus
+                  onChange={(e) => setName(e.target.value)}
+                  onBlur={() => {
+                    renamePhase(name);
+                    setEditing(false);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      renamePhase(name);
+                      setEditing(false);
+                    }
+                  }}
+                  style={{
+                    flex: 1,
+                    background: "#2f3542",
+                    color: "#fff",
+                    border: "none",
+                    borderRadius: 6,
+                    padding: "4px 6px"
+                  }}
+                />
+              ) : (
+                <>
+                  <span style={{ flex: 1 }}>{phaseName}</span>
+                  <button
+                    onClick={() => {
+                      setName(phaseName);
+                      setEditing(true);
+                    }}
+                    style={iconBtn}
+                  >
+                    ✏️
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
 
-        <button onClick={save}>Save</button>
+          <Divider />
 
-        <input
-          type="file"
-          accept=".json"
-          id="load-strategy"
-          onChange={load}
-          style={{ display: "none" }}
-        />
-        <button
-          onClick={() =>
-            document.getElementById("load-strategy").click()
-          }
-        >
-          Load
-        </button>
+          {/* TOOLS */}
+          <ToolRow>
+            <button
+              style={toolBtn(activeTool === "pen", "#2ed573")}
+              onClick={() => {
+                setTool("pen");
+                setActiveTool("pen");
+              }}
+            >
+              ✏️
+            </button>
+            <button
+              style={toolBtn(activeTool === "eraser", "#ff4757")}
+              onClick={() => {
+                setTool("eraser");
+                setActiveTool("eraser");
+              }}
+            >
+              ⛔
+            </button>
+            <input type="color" onChange={(e) => setColor(e.target.value)} />
+            <button style={baseBtn} onClick={clearCanvas}>🗑</button>
+          </ToolRow>
 
-        <button onClick={addPhase}>+ Phase</button>
-        <button onClick={prevPhase} disabled={phaseIndex === 0}>
-          ◀
-        </button>
-        <button
-          onClick={nextPhase}
-          disabled={phaseIndex === totalPhases - 1}
-        >
-          ▶
-        </button>
+          <ToolRow>
+            <button style={baseBtn} onClick={undo}>↶</button>
+            <button style={baseBtn} onClick={redo}>↷</button>
+          </ToolRow>
 
-        <PresentationControls />
-      </div>
-    </div>
+          <Divider />
+
+          <ToolRow>
+            <select value={currentPhaseMap} onChange={(e) => onMapChange(e.target.value)} style={selectStyle}>
+              <option value="/maps/bermuda.jpg">Bermuda</option>
+              <option value="/maps/purgatory.jpg">Purgatory</option>
+            </select>
+            <button style={baseBtn} onClick={save}>💾</button>
+          </ToolRow>
+
+          <ToolRow>
+            <button style={baseBtn} onClick={prevPhase}>◀</button>
+            <button style={baseBtn} onClick={addPhase}>＋</button>
+            <button style={baseBtn} onClick={nextPhase}>▶</button>
+          </ToolRow>
+
+          <Divider />
+
+          <PresentationControls />
+
+          {/* 📱 CLOSE */}
+          {isMobile && (
+            <button
+              onClick={() => setExpanded(false)}
+              style={{
+                marginTop: 6,
+                height: 32,
+                borderRadius: 8,
+                background: "#2f3542",
+                color: "#fff",
+                border: "none"
+              }}
+            >
+              Close
+            </button>
+          )}
+        </div>
+      )}
+    </>
   );
 }
+
+/* ---------- styles ---------- */
+
+const ToolRow = ({ children }) => (
+  <div style={{ display: "flex", gap: 6 }}>{children}</div>
+);
+
+const Divider = () => (
+  <div style={{ height: 1, background: "#2f3542", opacity: 0.6 }} />
+);
+
+const baseBtn = {
+  flex: 1,
+  height: 32,
+  borderRadius: 8,
+  border: "1px solid #2f3542",
+  background: "#2f3542",
+  color: "#fff",
+  cursor: "pointer"
+};
+
+const toolBtn = (active, accent) => ({
+  ...baseBtn,
+  background: active ? `${accent}22` : "#2f3542",
+  border: active ? `1px solid ${accent}` : "1px solid #2f3542"
+});
+
+const iconBtn = {
+  border: "none",
+  background: "none",
+  color: "#fff",
+  cursor: "pointer"
+};
+
+const selectStyle = {
+  flex: 1,
+  height: 32,
+  background: "#2f3542",
+  color: "#fff",
+  border: "1px solid #2f3542",
+  borderRadius: 8
+};
+
+
+
+
+
+
+
+
 
 
 

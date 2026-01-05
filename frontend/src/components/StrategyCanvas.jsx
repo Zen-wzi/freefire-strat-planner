@@ -329,17 +329,51 @@ setPhases((prevState) => {
   // ---------------- RENDER ----------------
   return (
     <div
-      ref={containerRef}
+  ref={containerRef}
+  onContextMenu={(e) => e.preventDefault()}   // 🔒 block right click
+  onDragStart={(e) => e.preventDefault()}     // 🔒 block drag image
+  style={{
+    position: "relative",
+    width: "100vw",
+    height: "100dvh",
+
+    /* 🌑 BASE BACKGROUND (always visible) */
+    background: "radial-gradient(1200px 600px at center, #1a1d24 0%, #0f1115 60%)",
+
+    /* 🔒 PRO APP FEEL */
+    userSelect: "none",
+    WebkitUserSelect: "none",
+    WebkitTouchCallout: "none",
+    overflow: "hidden",
+    touchAction: "none",
+
+    /* VISUAL DEPTH */
+    boxShadow:
+      "0 0 0 1px rgba(255,255,255,0.05), 0 20px 60px rgba(0,0,0,0.6)",
+    borderRadius: 12,
+    ...(window.innerWidth < 768
+  ? { paddingBottom: 96 } // bottom dock height
+  : {})
+
+  }}
+>
+  {/* 🗺 MAP LAYER (single, controlled) */}
+  {currentPhase.map && (
+    <div
       style={{
-        position: "relative",
-        width: "100vw",
-        height: "100vh",
+        position: "absolute",
+        inset: 0,
         backgroundImage: `url('${currentPhase.map}')`,
-        backgroundSize: "contain",
         backgroundRepeat: "no-repeat",
-        backgroundPosition: "center"
+        backgroundPosition: "center",
+        backgroundSize: "contain",
+        pointerEvents: "none",
+        zIndex: 0
       }}
-    >
+    />
+  )}
+
+
       <Toolbar
         setTool={setTool}
         setColor={setPenColor}
@@ -424,6 +458,7 @@ setPhases((prevState) => {
 
   style={{
     position: "absolute",
+    paddingBottom: "env(safe-area-inset-bottom)",
     inset: 0,
     width: "100%",
     height: "100%",

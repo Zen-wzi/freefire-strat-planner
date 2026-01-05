@@ -3,8 +3,6 @@ import { useRef, useEffect } from "react";
 
 const SIZE = 36;
 const HIT_SIZE = 56;
-const MAP_WIDTH = 1000;
-const MAP_HEIGHT = 600;
 
 export default function PlayerLayer({
   players,
@@ -14,123 +12,90 @@ export default function PlayerLayer({
   containerSize
 }) {
   const safePlayers = Array.isArray(players) ? players : [];
+  const draggingRef = useRef(null);
+  const offsetRef = useRef({ x: 0, y: 0 });
   const containerRef = useRef(null);
 
-  const draggingIdRef = useRef(null);
-  const offsetRef = useRef({ x: 0, y: 0 });
-  const activePointerIdRef = useRef(null);
-
-  // ---------- mapRect (matches background-size: contain) ----------
-  const getMapRect = () => {
-    const { width, height } = containerSize;
-    const mapAspect = MAP_WIDTH / MAP_HEIGHT;
-    const containerAspect = width / height;
-
-    let drawWidth, drawHeight, offsetX, offsetY;
-
-    if (containerAspect > mapAspect) {
-      drawHeight = height;
-      drawWidth = height * mapAspect;
-      offsetX = (width - drawWidth) / 2;
-      offsetY = 0;
-    } else {
-      drawWidth = width;
-      drawHeight = width / mapAspect;
-      offsetX = 0;
-      offsetY = (height - drawHeight) / 2;
-    }
-
-    return { drawWidth, drawHeight, offsetX, offsetY };
-  };
-
-  // ---------- unified move (mouse + pointer) ----------
+  // ---------------- DRAG MOVE (PC + MOBILE) ----------------
   useEffect(() => {
-    const handleMove = (clientX, clientY) => {
-      if (!draggingIdRef.current || !containerRef.current) return;
+    const handlePointerMove = (e) => {
+      if (!draggingRef.current || !containerRef.current) return;
 
       const rect = containerRef.current.getBoundingClientRect();
-      const { drawWidth, drawHeight, offsetX, offsetY } = getMapRect();
+      const clientX = e.clientX ?? e.touches?.[0]?.clientX;
+      const clientY = e.clientY ?? e.touches?.[0]?.clientY;
 
-      const mouseX = clientX - rect.left - offsetX;
-      const mouseY = clientY - rect.top - offsetY;
+      if (clientX == null || clientY == null) return;
 
       setPlayers((prev) =>
         prev.map((p) => {
-          if (p.id !== draggingIdRef.current) return p;
+          if (p.id === draggingRef.current) {
+            const newX =
+              (clientX - rect.left) * (1000 / containerSize.width) -
+              offsetRef.current.x;
 
-          const newX =
-            (mouseX / drawWidth) * MAP_WIDTH - offsetRef.current.x;
-          const newY =
-            (mouseY / drawHeight) * MAP_HEIGHT - offsetRef.current.y;
+            const newY =
+              (clientY - rect.top) * (600 / containerSize.height) -
+              offsetRef.current.y;
 
-          return {
-            ...p,
-            x: Math.max(0, Math.min(MAP_WIDTH - SIZE, newX)),
-            y: Math.max(0, Math.min(MAP_HEIGHT - SIZE, newY))
-          };
+            return {
+              ...p,
+              x: Math.max(0, Math.min(1000 - SIZE, newX)),
+              y: Math.max(0, Math.min(600 - SIZE, newY))
+            };
+          }
+          return p;
         })
       );
     };
 
-    const onMouseMove = (e) => handleMove(e.clientX, e.clientY);
-    const onMouseUp = () => {
-      draggingIdRef.current = null;
+    const stopDrag = () => {
+      draggingRef.current = null;
     };
 
-    const onPointerMove = (e) => {
-      if (e.pointerId !== activePointerIdRef.current) return;
-      handleMove(e.clientX, e.clientY);
-    };
-
-    const onPointerUp = (e) => {
-      if (e.pointerId !== activePointerIdRef.current) return;
-      activePointerIdRef.current = null;
-      draggingIdRef.current = null;
-    };
-
-    window.addEventListener("mousemove", onMouseMove);
-    window.addEventListener("mouseup", onMouseUp);
-    window.addEventListener("pointermove", onPointerMove);
-    window.addEventListener("pointerup", onPointerUp);
-    window.addEventListener("pointercancel", onPointerUp);
+    window.addEventListener("mousemove", handlePointerMove);
+    window.addEventListener("touchmove", handlePointerMove, { passive: false });
+    window.addEventListener("mouseup", stopDrag);
+    window.addEventListener("touchend", stopDrag);
 
     return () => {
-      window.removeEventListener("mousemove", onMouseMove);
-      window.removeEventListener("mouseup", onMouseUp);
-      window.removeEventListener("pointermove", onPointerMove);
-      window.removeEventListener("pointerup", onPointerUp);
-      window.removeEventListener("pointercancel", onPointerUp);
+      window.removeEventListener("mousemove", handlePointerMove);
+      window.removeEventListener("touchmove", handlePointerMove);
+      window.removeEventListener("mouseup", stopDrag);
+      window.removeEventListener("touchend", stopDrag);
     };
-  }, [containerSize, setPlayers]);
+  }, [setPlayers, containerSize]);
 
-  const startDrag = (clientX, clientY, player) => {
+  // ---------------- LOCK (PC ONLY – right click) ----------------
+  const toggleLock = (id) => {
+    setPlayers((prev) =>
+      prev.map((p) =>
+        p.id === id ? { ...p, locked: !p.locked } : p
+      )
+    );
+  };
+
+  // ---------------- DRAG START ----------------
+  const startDrag = (e, player) => {
     if (player.locked || !containerRef.current) return;
 
-    draggingIdRef.current = player.id;
-
     const rect = containerRef.current.getBoundingClientRect();
-    const { drawWidth, drawHeight, offsetX, offsetY } = getMapRect();
+    const clientX = e.clientX ?? e.touches?.[0]?.clientX;
+    const clientY = e.clientY ?? e.touches?.[0]?.clientY;
 
-    const mouseX = clientX - rect.left - offsetX;
-    const mouseY = clientY - rect.top - offsetY;
+    if (clientX == null || clientY == null) return;
+
+    draggingRef.current = player.id;
 
     offsetRef.current = {
-      x: (mouseX / drawWidth) * MAP_WIDTH - player.x,
-      y: (mouseY / drawHeight) * MAP_HEIGHT - player.y
+      x:
+        (clientX - rect.left) * (1000 / containerSize.width) -
+        player.x,
+      y:
+        (clientY - rect.top) * (600 / containerSize.height) -
+        player.y
     };
-  };
 
-  const handleMouseDown = (e, player) => {
-    startDrag(e.clientX, e.clientY, player);
-    e.stopPropagation();
-  };
-
-  const handlePointerDown = (e, player) => {
-    if (e.pointerType === "mouse") return;
-    if (activePointerIdRef.current !== null) return;
-
-    activePointerIdRef.current = e.pointerId;
-    startDrag(e.clientX, e.clientY, player);
     e.preventDefault();
     e.stopPropagation();
   };
@@ -138,20 +103,26 @@ export default function PlayerLayer({
   return (
     <div
       ref={containerRef}
-      style={{ position: "absolute", inset: 0, pointerEvents: "none" }}
+      style={{
+        position: "absolute",
+        inset: 0,
+        pointerEvents: "none"
+      }}
     >
       {safePlayers.map((p) => {
-        const { drawWidth, drawHeight, offsetX, offsetY } = getMapRect();
-
-        const left = offsetX + (p.x / MAP_WIDTH) * drawWidth;
-        const top = offsetY + (p.y / MAP_HEIGHT) * drawHeight;
+        const left = (p.x / 1000) * containerSize.width;
+        const top = (p.y / 600) * containerSize.height;
 
         return (
           <div
             key={p.id}
-            onMouseDown={(e) => handleMouseDown(e, p)}
-            onPointerDown={(e) => handlePointerDown(e, p)}
+            onMouseDown={(e) => startDrag(e, p)}
+            onTouchStart={(e) => startDrag(e, p)}
             onClick={() => onPlayerClick(p)}
+            onContextMenu={(e) => {
+              e.preventDefault();
+              toggleLock(p.id);
+            }}
             style={{
               position: "absolute",
               left: left - (HIT_SIZE - SIZE) / 2,
@@ -162,12 +133,12 @@ export default function PlayerLayer({
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              zIndex: 10,
-              touchAction: "none" // 🔥 critical for mobile drag
+              zIndex: 10
             }}
           >
             <div
               style={{
+                position: "relative",
                 width: SIZE,
                 height: SIZE,
                 borderRadius: "50%",
@@ -183,10 +154,29 @@ export default function PlayerLayer({
                   selectedPlayer?.id === p.id
                     ? "3px solid yellow"
                     : "2px solid #111",
-                userSelect: "none"
+                userSelect: "none",
+                opacity: p.locked ? 0.7 : 1,
+                touchAction: "none" // 🚫 disables long-press / zoom interference
               }}
             >
               {p.name}
+
+              {p.locked && (
+                <div
+                  style={{
+                    position: "absolute",
+                    top: -6,
+                    right: -6,
+                    background: "#111",
+                    borderRadius: "50%",
+                    padding: "2px 4px",
+                    fontSize: 10,
+                    lineHeight: 1
+                  }}
+                >
+                  🔒
+                </div>
+              )}
             </div>
           </div>
         );
@@ -194,6 +184,9 @@ export default function PlayerLayer({
     </div>
   );
 }
+
+
+
 
 
 
