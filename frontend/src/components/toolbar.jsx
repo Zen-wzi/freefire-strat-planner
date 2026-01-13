@@ -24,15 +24,27 @@ export default function Toolbar({
   const [name, setName] = useState(phaseName);
   const [activeTool, setActiveTool] = useState("pen");
 
-  // ✅ SAFE mobile detection (AFTER mount)
+  // ✅ SAFE mobile detection
   const [isMobile, setIsMobile] = useState(false);
   const [expanded, setExpanded] = useState(true);
 
   useEffect(() => {
-    const mobile = window.innerWidth < 768;
-    setIsMobile(mobile);
-    setExpanded(!mobile); // collapsed by default on mobile
-  }, []);
+  const mobile = window.innerWidth < 768;
+  setIsMobile(mobile);
+
+  // Only set initial state ONCE
+  setExpanded(!mobile);
+
+  const handleResize = () => {
+    const nowMobile = window.innerWidth < 768;
+    setIsMobile(nowMobile);
+    // ❗ Do NOT touch `expanded` here
+  };
+
+  window.addEventListener("resize", handleResize);
+  return () => window.removeEventListener("resize", handleResize);
+}, []);
+
 
   return (
     <>
@@ -41,12 +53,12 @@ export default function Toolbar({
         <button
           onClick={() => setExpanded(true)}
           style={{
-            position: "absolute",
-            bottom: 20,
+            position: "fixed",
+            bottom: "calc(16px + env(safe-area-inset-bottom))",
             left: "50%",
             transform: "translateX(-50%)",
             pointerEvents: "auto",
-            zIndex: 30,
+            zIndex: 50,
             width: 56,
             height: 56,
             borderRadius: 16,
@@ -55,7 +67,9 @@ export default function Toolbar({
             fontSize: 22,
             border: "1px solid #2f3542",
             boxShadow: "0 8px 24px rgba(0,0,0,0.5)",
-            cursor: "pointer"
+            cursor: "pointer",
+            WebkitTapHighlightColor: "transparent",
+            touchAction: "manipulation"
           }}
         >
           ⬆️
@@ -66,29 +80,53 @@ export default function Toolbar({
       {(!isMobile || expanded) && (
         <div
           style={{
-            position: "absolute",
+            position: isMobile ? "fixed" : "absolute",
             zIndex: 20,
 
-            // Desktop vs mobile placement
             top: isMobile ? "auto" : 16,
-            bottom: isMobile ? 16 : "auto",
+            bottom: isMobile ? 0 : "auto",
             left: isMobile ? "50%" : 16,
             transform: isMobile ? "translateX(-50%)" : "none",
 
-            width: isMobile ? "92vw" : 260,
-            maxWidth: 360,
+            width: isMobile ? "100vw" : 260,
+            maxWidth: isMobile ? "100vw" : 360,
             padding: 12,
 
-            background: "rgba(18,18,18,0.95)",
-            borderRadius: 16,
+            background: "rgba(18,18,18,0.92)",
+            backdropFilter: "blur(10px)",
+            WebkitBackdropFilter: "blur(10px)",
+
+            borderRadius: isMobile ? "20px 20px 0 0" : 16,
             display: "flex",
             flexDirection: "column",
             gap: 10,
 
-            boxShadow: "0 12px 30px rgba(0,0,0,0.5)",
-            fontFamily: "Inter, system-ui, sans-serif"
+            boxShadow: isMobile
+              ? "0 -12px 30px rgba(0,0,0,0.6)"
+              : "0 12px 30px rgba(0,0,0,0.5)",
+
+            fontFamily: "Inter, system-ui, sans-serif",
+            transition: "transform 220ms ease, opacity 200ms ease"
           }}
         >
+          {/* 📱 GRIP BAR */}
+          {isMobile && (
+            <div
+              onClick={() => setExpanded(false)}
+              style={{
+                alignSelf: "center",
+                width: 48,
+                height: 5,
+                borderRadius: 3,
+                background: "#3a3f4a",
+                marginBottom: 6,
+                cursor: "pointer",
+                WebkitTapHighlightColor: "transparent",
+                touchAction: "manipulation"
+              }}
+            />
+          )}
+
           {/* PHASE HEADER */}
           <div style={{ color: "#fff", fontWeight: 600, fontSize: 14 }}>
             Phase {phaseIndex + 1} / {totalPhases}
@@ -109,13 +147,16 @@ export default function Toolbar({
                     }
                   }}
                   style={{
-                    flex: 1,
-                    background: "#2f3542",
-                    color: "#fff",
-                    border: "none",
-                    borderRadius: 6,
-                    padding: "4px 6px"
+                  flex: 1,
+                  background: "#2f3542",
+                  color: "#fff",
+                  border: "none",
+                  borderRadius: 6,
+                  padding: "6px 8px",
+                  fontSize: 16,              // 🔥 prevents iOS zoom
+                  WebkitTextSizeAdjust: "100%"
                   }}
+
                 />
               ) : (
                 <>
@@ -184,23 +225,6 @@ export default function Toolbar({
           <Divider />
 
           <PresentationControls />
-
-          {/* 📱 CLOSE */}
-          {isMobile && (
-            <button
-              onClick={() => setExpanded(false)}
-              style={{
-                marginTop: 6,
-                height: 32,
-                borderRadius: 8,
-                background: "#2f3542",
-                color: "#fff",
-                border: "none"
-              }}
-            >
-              Close
-            </button>
-          )}
         </div>
       )}
     </>
@@ -248,6 +272,9 @@ const selectStyle = {
   border: "1px solid #2f3542",
   borderRadius: 8
 };
+
+
+
 
 
 

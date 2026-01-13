@@ -8,13 +8,18 @@ const deepCopy = (v) => JSON.parse(JSON.stringify(v));
 
 export default function StrategyCanvas() {
   const containerRef = useRef(null);
+  const stageRef = useRef(null);
   const canvasRef = useRef(null);
   const isDrawingRef = useRef(false);
   const isPathActiveRef = useRef(false);
   const lastPosRef = useRef({ x: 0, y: 0 });
   const dprRef = useRef(1);
   const activePointerIdRef = useRef(null);
+  const [isMobile, setIsMobile] = useState(false);
 
+  useEffect(() => {
+    setIsMobile(window.innerWidth < 768);
+  }, []);
 
   // ---------------- STATE ----------------
   const [containerSize, setContainerSize] = useState({ width: 1000, height: 600 });
@@ -46,8 +51,8 @@ export default function StrategyCanvas() {
   // ---------------- RESIZE ----------------
   useEffect(() => {
     const updateSize = () => {
-      if (!containerRef.current) return;
-      const rect = containerRef.current.getBoundingClientRect();
+      if (!stageRef.current) return;
+      const rect = stageRef.current.getBoundingClientRect();
       setContainerSize({ width: rect.width, height: rect.height });
     };
     updateSize();
@@ -158,31 +163,30 @@ export default function StrategyCanvas() {
 
   // ---------------- DRAWING ----------------
   const handlePointerDown = (e) => {
-  if (e.pointerType === "mouse") return;
-  if (activePointerIdRef.current !== null) return;
+    if (e.pointerType === "mouse") return;
+    if (activePointerIdRef.current !== null) return;
 
-  activePointerIdRef.current = e.pointerId;
-  e.preventDefault();
-  handleMouseDown(e);
-};
+    activePointerIdRef.current = e.pointerId;
+    e.preventDefault();
+    handleMouseDown(e);
+  };
 
-const handlePointerMove = (e) => {
-  if (e.pointerType === "mouse") return;
-  if (e.pointerId !== activePointerIdRef.current) return;
+  const handlePointerMove = (e) => {
+    if (e.pointerType === "mouse") return;
+    if (e.pointerId !== activePointerIdRef.current) return;
 
-  e.preventDefault();
-  handleMouseMove(e);
-};
+    e.preventDefault();
+    handleMouseMove(e);
+  };
 
-const handlePointerUp = (e) => {
-  if (e.pointerType === "mouse") return;
-  if (e.pointerId !== activePointerIdRef.current) return;
+  const handlePointerUp = (e) => {
+    if (e.pointerType === "mouse") return;
+    if (e.pointerId !== activePointerIdRef.current) return;
 
-  activePointerIdRef.current = null;
-  e.preventDefault();
-  handleMouseUp();
-};
-
+    activePointerIdRef.current = null;
+    e.preventDefault();
+    handleMouseUp();
+  };
 
   const getMousePos = (e) => {
     const rect = canvasRef.current.getBoundingClientRect();
@@ -215,9 +219,8 @@ const handlePointerUp = (e) => {
   };
 
   const handleMouseMove = (e) => {
-  if (!isDrawingRef.current || !canvasRef.current) return;
-  if (e.buttons !== 1) return; // ✅ HARD STOP (fixes ghost + dotted lines)
-
+    if (!isDrawingRef.current || !canvasRef.current) return;
+    if (e.buttons !== 1) return;
 
     const pos = getMousePos(e);
     const ctx = canvasRef.current.getContext("2d");
@@ -226,33 +229,20 @@ const handlePointerUp = (e) => {
       ctx.lineTo(pos.x, pos.y);
       ctx.stroke();
 
-      setPhases((prev) => {
-        const updated = deepCopy(prev);
+      const prev = lastPosRef.current;
+      lastPosRef.current = pos;
+
+      setPhases((prevState) => {
+        const updated = deepCopy(prevState);
         updated[currentPhaseIndex].lines.push({
-          x1: lastPosRef.current.x,
-          y1: lastPosRef.current.y,
+          x1: prev.x,
+          y1: prev.y,
           x2: pos.x,
           y2: pos.y,
           color: penColor
         });
         return updated;
       });
-
-      const prev = lastPosRef.current;
-lastPosRef.current = pos;
-
-setPhases((prevState) => {
-  const updated = deepCopy(prevState);
-  updated[currentPhaseIndex].lines.push({
-    x1: prev.x,
-    y1: prev.y,
-    x2: pos.x,
-    y2: pos.y,
-    color: penColor
-  });
-  return updated;
-});
-
     }
 
     if (tool === "eraser" && isDrawingRef.current) {
@@ -329,51 +319,33 @@ setPhases((prevState) => {
   // ---------------- RENDER ----------------
   return (
     <div
-  ref={containerRef}
-  onContextMenu={(e) => e.preventDefault()}   // 🔒 block right click
-  onDragStart={(e) => e.preventDefault()}     // 🔒 block drag image
-  style={{
-    position: "relative",
-    width: "100vw",
-    height: "100dvh",
+      ref={containerRef}
+      onContextMenu={(e) => e.preventDefault()}
+      onDragStart={(e) => e.preventDefault()}
+      style={{
+        position: "relative",
+        width: "100vw",
+        height: "100dvh",
+        background: "radial-gradient(1200px 600px at center, #1a1d24 0%, #0f1115 60%)",
+        userSelect: "none",
+        WebkitUserSelect: "none",
+        WebkitTouchCallout: "none",
+        overflow: "hidden",
+        touchAction: "none",
+        boxShadow: "0 0 0 1px rgba(255,255,255,0.05), 0 20px 60px rgba(0,0,0,0.6)",
+        borderRadius: 12,
+        /* 📱 Reserve space for mobile dock */
+...(isMobile ? { paddingBottom: 96 } : {}),
 
-    /* 🌑 BASE BACKGROUND (always visible) */
-    background: "radial-gradient(1200px 600px at center, #1a1d24 0%, #0f1115 60%)",
-
-    /* 🔒 PRO APP FEEL */
-    userSelect: "none",
-    WebkitUserSelect: "none",
-    WebkitTouchCallout: "none",
-    overflow: "hidden",
-    touchAction: "none",
-
-    /* VISUAL DEPTH */
-    boxShadow:
-      "0 0 0 1px rgba(255,255,255,0.05), 0 20px 60px rgba(0,0,0,0.6)",
-    borderRadius: 12,
-    ...(window.innerWidth < 768
-  ? { paddingBottom: 96 } // bottom dock height
+/* 🛡 Mobile interaction shield zone */
+...(isMobile
+  ? {
+      WebkitTapHighlightColor: "transparent"
+    }
   : {})
 
-  }}
->
-  {/* 🗺 MAP LAYER (single, controlled) */}
-  {currentPhase.map && (
-    <div
-      style={{
-        position: "absolute",
-        inset: 0,
-        backgroundImage: `url('${currentPhase.map}')`,
-        backgroundRepeat: "no-repeat",
-        backgroundPosition: "center",
-        backgroundSize: "contain",
-        pointerEvents: "none",
-        zIndex: 0
       }}
-    />
-  )}
-
-
+    >
       <Toolbar
         setTool={setTool}
         setColor={setPenColor}
@@ -425,75 +397,97 @@ setPhases((prevState) => {
         }
       />
 
-      <canvas
-        ref={canvasRef}
-        width={1000}
-        height={600}
-        onMouseDown={handleMouseDown}
-        onMouseMove={handleMouseMove}
-        onMouseUp={handleMouseUp}
-        onMouseLeave={handleMouseUp}
+      {/* 🎯 STAGE (locked playable area) */}
+      <div
+        ref={stageRef}
         style={{
           position: "absolute",
           inset: 0,
-          width: "100%",
-          height: "100%",
-          zIndex: 1
+          ...(isMobile ? { bottom: 96 } : {})
         }}
-      />
-      <canvas
-  ref={canvasRef}
-  width={1000}
-  height={600}
-  onMouseDown={handleMouseDown}
-  onMouseMove={handleMouseMove}
-  onMouseUp={handleMouseUp}
-  onMouseLeave={handleMouseUp}
+      >
+        {currentPhase.map && (
+          <div
+            style={{
+              position: "absolute",
+              inset: 0,
+              backgroundImage: `url('${currentPhase.map}')`,
+              backgroundRepeat: "no-repeat",
+              backgroundPosition: "center",
+              backgroundSize: "contain",
+              pointerEvents: "none",
+              zIndex: 0
+            }}
+          />
+        )}
 
-  /* ✅ MOBILE SUPPORT */
-  onPointerDown={handlePointerDown}
-  onPointerMove={handlePointerMove}
-  onPointerUp={handlePointerUp}
-  onPointerCancel={handlePointerUp}
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            pointerEvents: "none",
+            zIndex: 0,
+            background: `
+              radial-gradient(
+                1200px 600px at center,
+                rgba(0,0,0,0) 0%,
+                rgba(0,0,0,0.15) 60%,
+                rgba(0,0,0,0.35) 100%
+              )
+            `
+          }}
+        />
 
-  style={{
-    position: "absolute",
-    paddingBottom: "env(safe-area-inset-bottom)",
-    inset: 0,
-    width: "100%",
-    height: "100%",
-    zIndex: 1,
-    touchAction: "none" // 🔥 CRITICAL FOR MOBILE DRAWING
-  }}
-/>
+        <canvas
+          ref={canvasRef}
+          width={1000}
+          height={600}
+          onMouseDown={handleMouseDown}
+          onMouseMove={handleMouseMove}
+          onMouseUp={handleMouseUp}
+          onMouseLeave={handleMouseUp}
+          onPointerDown={handlePointerDown}
+          onPointerMove={handlePointerMove}
+          onPointerUp={handlePointerUp}
+          onPointerCancel={handlePointerUp}
+          style={{
+            position: "absolute",
+            inset: 0,
+            width: "100%",
+            height: "100%",
+            zIndex: 1,
+            touchAction: "none"
+          }}
+        />
 
+        <RotationLayer
+          rotations={currentPhase.rotations}
+          players={currentPhase.players}
+          containerSize={containerSize}
+        />
 
-      <RotationLayer
-        rotations={currentPhase.rotations}
-        players={currentPhase.players}
-        containerSize={containerSize}
-      />
-
-      <PlayerLayer
-        players={currentPhase.players}
-        setPlayers={(updater) => {
-          pushHistory();
-          setPhases((prev) => {
-            const updated = deepCopy(prev);
-            updated[currentPhaseIndex].players =
-              typeof updater === "function"
-                ? updater(updated[currentPhaseIndex].players)
-                : updater;
-            return updated;
-          });
-        }}
-        onPlayerClick={handlePlayerClick}
-        selectedPlayer={selectedPlayer}
-        containerSize={containerSize}
-      />
+        <PlayerLayer
+          players={currentPhase.players}
+          setPlayers={(updater) => {
+            pushHistory();
+            setPhases((prev) => {
+              const updated = deepCopy(prev);
+              updated[currentPhaseIndex].players =
+                typeof updater === "function"
+                  ? updater(updated[currentPhaseIndex].players)
+                  : updater;
+              return updated;
+            });
+          }}
+          onPlayerClick={handlePlayerClick}
+          selectedPlayer={selectedPlayer}
+          containerSize={containerSize}
+        />
+      </div>
     </div>
   );
 }
+
 
 
 
