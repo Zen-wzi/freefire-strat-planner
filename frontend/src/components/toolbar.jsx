@@ -29,35 +29,56 @@ export default function Toolbar({
   const [expanded, setExpanded] = useState(true);
 
   useEffect(() => {
-  const mobile = window.innerWidth < 768;
-  setIsMobile(mobile);
+    const mobile = window.innerWidth < 768;
+    setIsMobile(mobile);
+    setExpanded(!mobile);
 
-  // Only set initial state ONCE
-  setExpanded(!mobile);
+    const handleResize = () => {
+      const nowMobile = window.innerWidth < 768;
+      setIsMobile(nowMobile);
+    };
 
-  const handleResize = () => {
-    const nowMobile = window.innerWidth < 768;
-    setIsMobile(nowMobile);
-    // ❗ Do NOT touch `expanded` here
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  const rowStyle = {
+    display: "flex",
+    gap: isMobile ? 10 : 6
   };
 
-  window.addEventListener("resize", handleResize);
-  return () => window.removeEventListener("resize", handleResize);
-}, []);
+  const btn = (style) => ({
+    ...style,
+    height: isMobile ? 40 : 32
+  });
 
+  const pressHandlers = {
+    onPointerDown: (e) => {
+      e.currentTarget.style.transform = "scale(0.96)";
+      e.currentTarget.style.filter = "brightness(0.9)";
+    },
+    onPointerUp: (e) => {
+      e.currentTarget.style.transform = "scale(1)";
+      e.currentTarget.style.filter = "brightness(1)";
+    },
+    onPointerLeave: (e) => {
+      e.currentTarget.style.transform = "scale(1)";
+      e.currentTarget.style.filter = "brightness(1)";
+    }
+  };
 
   return (
     <>
-      {/* 📱 MOBILE EXPAND BUTTON (ALWAYS VISIBLE) */}
+      {/* 📱 MOBILE EXPAND BUTTON */}
       {isMobile && !expanded && (
         <button
+          {...pressHandlers}
           onClick={() => setExpanded(true)}
           style={{
             position: "fixed",
             bottom: "calc(16px + env(safe-area-inset-bottom))",
             left: "50%",
             transform: "translateX(-50%)",
-            pointerEvents: "auto",
             zIndex: 50,
             width: 56,
             height: 56,
@@ -66,10 +87,10 @@ export default function Toolbar({
             color: "#fff",
             fontSize: 22,
             border: "1px solid #2f3542",
-            boxShadow: "0 8px 24px rgba(0,0,0,0.5)",
-            cursor: "pointer",
+            boxShadow: "0 8px 24px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.05)",
             WebkitTapHighlightColor: "transparent",
-            touchAction: "manipulation"
+            touchAction: "manipulation",
+            transition: "transform 120ms ease, filter 120ms ease"
           }}
         >
           ⬆️
@@ -90,7 +111,7 @@ export default function Toolbar({
 
             width: isMobile ? "100vw" : 260,
             maxWidth: isMobile ? "100vw" : 360,
-            padding: 12,
+            padding: isMobile ? 16 : 12,
 
             background: "rgba(18,18,18,0.92)",
             backdropFilter: "blur(10px)",
@@ -99,14 +120,13 @@ export default function Toolbar({
             borderRadius: isMobile ? "20px 20px 0 0" : 16,
             display: "flex",
             flexDirection: "column",
-            gap: 10,
+            gap: isMobile ? 16 : 12,
 
             boxShadow: isMobile
               ? "0 -12px 30px rgba(0,0,0,0.6)"
               : "0 12px 30px rgba(0,0,0,0.5)",
 
-            fontFamily: "Inter, system-ui, sans-serif",
-            transition: "transform 220ms ease, opacity 200ms ease"
+            fontFamily: "Inter, system-ui, sans-serif"
           }}
         >
           {/* 📱 GRIP BAR */}
@@ -119,10 +139,8 @@ export default function Toolbar({
                 height: 5,
                 borderRadius: 3,
                 background: "#3a3f4a",
-                marginBottom: 6,
-                cursor: "pointer",
-                WebkitTapHighlightColor: "transparent",
-                touchAction: "manipulation"
+                marginBottom: 10,
+                cursor: "pointer"
               }}
             />
           )}
@@ -130,7 +148,7 @@ export default function Toolbar({
           {/* PHASE HEADER */}
           <div style={{ color: "#fff", fontWeight: 600, fontSize: 14 }}>
             Phase {phaseIndex + 1} / {totalPhases}
-            <div style={{ display: "flex", alignItems: "center", marginTop: 4 }}>
+            <div style={{ display: "flex", alignItems: "center", marginTop: 8 }}>
               {editing ? (
                 <input
                   value={name}
@@ -147,26 +165,29 @@ export default function Toolbar({
                     }
                   }}
                   style={{
-                  flex: 1,
-                  background: "#2f3542",
-                  color: "#fff",
-                  border: "none",
-                  borderRadius: 6,
-                  padding: "6px 8px",
-                  fontSize: 16,              // 🔥 prevents iOS zoom
-                  WebkitTextSizeAdjust: "100%"
+                    flex: 1,
+                    background: "#2f3542",
+                    color: "#fff",
+                    border: "none",
+                    borderRadius: 6,
+                    padding: "8px 10px",
+                    fontSize: 16,
+                    WebkitTextSizeAdjust: "100%"
                   }}
-
                 />
               ) : (
                 <>
                   <span style={{ flex: 1 }}>{phaseName}</span>
                   <button
+                    {...pressHandlers}
                     onClick={() => {
                       setName(phaseName);
                       setEditing(true);
                     }}
-                    style={iconBtn}
+                    style={{
+                      ...iconBtn,
+                      transition: "transform 120ms ease, filter 120ms ease"
+                    }}
                   >
                     ✏️
                   </button>
@@ -177,10 +198,11 @@ export default function Toolbar({
 
           <Divider />
 
-          {/* TOOLS */}
-          <ToolRow>
+          {/* DRAW TOOLS */}
+          <div style={rowStyle}>
             <button
-              style={toolBtn(activeTool === "pen", "#2ed573")}
+              {...pressHandlers}
+              style={toolBtn(activeTool === "pen", "#2ed573", isMobile)}
               onClick={() => {
                 setTool("pen");
                 setActiveTool("pen");
@@ -189,7 +211,8 @@ export default function Toolbar({
               ✏️
             </button>
             <button
-              style={toolBtn(activeTool === "eraser", "#ff4757")}
+              {...pressHandlers}
+              style={toolBtn(activeTool === "eraser", "#ff4757", isMobile)}
               onClick={() => {
                 setTool("eraser");
                 setActiveTool("eraser");
@@ -197,30 +220,54 @@ export default function Toolbar({
             >
               ⛔
             </button>
-            <input type="color" onChange={(e) => setColor(e.target.value)} />
-            <button style={baseBtn} onClick={clearCanvas}>🗑</button>
-          </ToolRow>
+            <input
+              type="color"
+              onChange={(e) => setColor(e.target.value)}
+              style={{
+                height: isMobile ? 40 : 32,
+                width: isMobile ? 48 : 36,
+                borderRadius: 8,
+                border: "none",
+                background: "none"
+              }}
+            />
+            <button {...pressHandlers} style={btn(baseBtn)} onClick={clearCanvas}>🗑</button>
+          </div>
 
-          <ToolRow>
-            <button style={baseBtn} onClick={undo}>↶</button>
-            <button style={baseBtn} onClick={redo}>↷</button>
-          </ToolRow>
+          <div style={{ height: 6 }} />
+
+          {/* HISTORY */}
+          <div style={rowStyle}>
+            <button {...pressHandlers} style={btn(baseBtn)} onClick={undo}>↶</button>
+            <button {...pressHandlers} style={btn(baseBtn)} onClick={redo}>↷</button>
+          </div>
 
           <Divider />
 
-          <ToolRow>
-            <select value={currentPhaseMap} onChange={(e) => onMapChange(e.target.value)} style={selectStyle}>
+          {/* MAP + SAVE */}
+          <div style={rowStyle}>
+            <select
+              value={currentPhaseMap}
+              onChange={(e) => onMapChange(e.target.value)}
+              style={{
+                ...selectStyle,
+                height: isMobile ? 40 : 32
+              }}
+            >
               <option value="/maps/bermuda.jpg">Bermuda</option>
               <option value="/maps/purgatory.jpg">Purgatory</option>
             </select>
-            <button style={baseBtn} onClick={save}>💾</button>
-          </ToolRow>
+            <button {...pressHandlers} style={btn(baseBtn)} onClick={save}>💾</button>
+          </div>
 
-          <ToolRow>
-            <button style={baseBtn} onClick={prevPhase}>◀</button>
-            <button style={baseBtn} onClick={addPhase}>＋</button>
-            <button style={baseBtn} onClick={nextPhase}>▶</button>
-          </ToolRow>
+          <div style={{ height: 6 }} />
+
+          {/* PHASE NAV */}
+          <div style={rowStyle}>
+            <button {...pressHandlers} style={btn(baseBtn)} onClick={prevPhase}>◀</button>
+            <button {...pressHandlers} style={btn(baseBtn)} onClick={addPhase}>＋</button>
+            <button {...pressHandlers} style={btn(baseBtn)} onClick={nextPhase}>▶</button>
+          </div>
 
           <Divider />
 
@@ -233,26 +280,24 @@ export default function Toolbar({
 
 /* ---------- styles ---------- */
 
-const ToolRow = ({ children }) => (
-  <div style={{ display: "flex", gap: 6 }}>{children}</div>
-);
-
 const Divider = () => (
-  <div style={{ height: 1, background: "#2f3542", opacity: 0.6 }} />
+  <div style={{ height: 1, background: "linear-gradient(to right, transparent, #2f3542, transparent)", opacity: 0.7 }} />
 );
 
 const baseBtn = {
   flex: 1,
-  height: 32,
-  borderRadius: 8,
+  borderRadius: 10,
   border: "1px solid #2f3542",
   background: "#2f3542",
   color: "#fff",
-  cursor: "pointer"
+  cursor: "pointer",
+  boxShadow: "inset 0 1px 0 rgba(255,255,255,0.04)",
+  transition: "transform 120ms ease, filter 120ms ease"
 };
 
-const toolBtn = (active, accent) => ({
+const toolBtn = (active, accent, isMobile) => ({
   ...baseBtn,
+  height: isMobile ? 40 : 32,
   background: active ? `${accent}22` : "#2f3542",
   border: active ? `1px solid ${accent}` : "1px solid #2f3542"
 });
@@ -266,12 +311,15 @@ const iconBtn = {
 
 const selectStyle = {
   flex: 1,
-  height: 32,
   background: "#2f3542",
   color: "#fff",
   border: "1px solid #2f3542",
-  borderRadius: 8
+  borderRadius: 10,
+  padding: "0 8px"
 };
+
+
+
 
 
 
