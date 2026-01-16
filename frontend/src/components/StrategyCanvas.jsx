@@ -5,27 +5,30 @@ import RotationLayer from "./RotationLayer";
 import Toolbar from "./Toolbar";
 
 const deepCopy = (v) => JSON.parse(JSON.stringify(v));
+const uid = () => Math.random().toString(36).slice(2);
+
+// --- smoothing helpers ---
+const MIN_DIST = 2; // px in canvas-space (1000x600)
+const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
 
 export default function StrategyCanvas() {
   const containerRef = useRef(null);
   const stageRef = useRef(null);
   const canvasRef = useRef(null);
   const isDrawingRef = useRef(false);
-  const isPathActiveRef = useRef(false);
-  const lastPosRef = useRef({ x: 0, y: 0 });
-  const dprRef = useRef(1);
   const activePointerIdRef = useRef(null);
+
+  const [cursorCSS, setCursorCSS] = useState(null);
+
   const [isMobile, setIsMobile] = useState(false);
-
-  useEffect(() => {
-    setIsMobile(window.innerWidth < 768);
-  }, []);
-
-  // ---------------- STATE ----------------
   const [containerSize, setContainerSize] = useState({ width: 1000, height: 600 });
   const [selectedPlayer, setSelectedPlayer] = useState(null);
   const [tool, setTool] = useState("pen");
   const [penColor, setPenColor] = useState("yellow");
+
+  useEffect(() => {
+    setIsMobile(window.innerWidth < 768);
+  }, []);
 
   const [phases, setPhases] = useState([
     {
@@ -38,7 +41,7 @@ export default function StrategyCanvas() {
         { id: 3, name: "P3", x: 180, y: 260, color: "#2ed573", locked: false },
         { id: 4, name: "P4", x: 320, y: 260, color: "#ffa502", locked: false }
       ],
-      lines: [],
+      strokes: [],
       rotations: [],
       undoStack: [],
       redoStack: []
@@ -60,31 +63,6 @@ export default function StrategyCanvas() {
     return () => window.removeEventListener("resize", updateSize);
   }, []);
 
-  // ---------------- DPI FIX ----------------
-  useEffect(() => {
-    if (!canvasRef.current) return;
-    const canvas = canvasRef.current;
-    const ctx = canvas.getContext("2d");
-
-    const dpr = window.devicePixelRatio || 1;
-    dprRef.current = dpr;
-
-    canvas.width = 1000 * dpr;
-    canvas.height = 600 * dpr;
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  }, [containerSize]);
-
-  // ---------------- HARD STOP DRAWING (FIX) ----------------
-  useEffect(() => {
-    const stopDrawing = () => {
-      isDrawingRef.current = false;
-      isPathActiveRef.current = false;
-    };
-
-    window.addEventListener("mouseup", stopDrawing);
-    return () => window.removeEventListener("mouseup", stopDrawing);
-  }, []);
-
   // ---------------- HISTORY ----------------
   const pushHistory = () => {
     setPhases((prev) => {
@@ -94,7 +72,7 @@ export default function StrategyCanvas() {
         deepCopy({
           map: p.map,
           players: p.players,
-          lines: p.lines,
+          strokes: p.strokes,
           rotations: p.rotations
         })
       );
@@ -113,7 +91,7 @@ export default function StrategyCanvas() {
         deepCopy({
           map: p.map,
           players: p.players,
-          lines: p.lines,
+          strokes: p.strokes,
           rotations: p.rotations
         })
       );
@@ -133,7 +111,7 @@ export default function StrategyCanvas() {
         deepCopy({
           map: p.map,
           players: p.players,
-          lines: p.lines,
+          strokes: p.strokes,
           rotations: p.rotations
         })
       );
@@ -161,34 +139,7 @@ export default function StrategyCanvas() {
     }
   };
 
-  // ---------------- DRAWING ----------------
-  const handlePointerDown = (e) => {
-    if (e.pointerType === "mouse") return;
-    if (activePointerIdRef.current !== null) return;
-
-    activePointerIdRef.current = e.pointerId;
-    e.preventDefault();
-    handleMouseDown(e);
-  };
-
-  const handlePointerMove = (e) => {
-    if (e.pointerType === "mouse") return;
-    if (e.pointerId !== activePointerIdRef.current) return;
-
-    e.preventDefault();
-    handleMouseMove(e);
-  };
-
-  const handlePointerUp = (e) => {
-    if (e.pointerType === "mouse") return;
-    if (e.pointerId !== activePointerIdRef.current) return;
-
-    activePointerIdRef.current = null;
-    e.preventDefault();
-    handleMouseUp();
-  };
-
-  const getMousePos = (e) => {
+  const getCanvasPos = (e) => {
     const rect = canvasRef.current.getBoundingClientRect();
     return {
       x: ((e.clientX - rect.left) / rect.width) * 1000,
@@ -196,97 +147,208 @@ export default function StrategyCanvas() {
     };
   };
 
-  const handleMouseDown = (e) => {
-    if (!canvasRef.current) return;
-    pushHistory();
-
-    isDrawingRef.current = true;
-    isPathActiveRef.current = true;
-
-    const pos = getMousePos(e);
-    lastPosRef.current = pos;
-
-    const ctx = canvasRef.current.getContext("2d");
-    ctx.globalCompositeOperation = "source-over";
-    ctx.setLineDash([]);
-    ctx.lineCap = "round";
-    ctx.lineJoin = "round";
-    ctx.strokeStyle = penColor;
-    ctx.lineWidth = 3;
-
-    ctx.beginPath();
-    ctx.moveTo(pos.x, pos.y);
+  const updateCursorCSS = (e) => {
+    if (!stageRef.current) return;
+    const rect = stageRef.current.getBoundingClientRect();
+    setCursorCSS({
+      x: e.clientX - rect.left,
+      y: e.clientY - rect.top
+    });
   };
 
-  const handleMouseMove = (e) => {
-    if (!isDrawingRef.current || !canvasRef.current) return;
-    if (e.buttons !== 1) return;
+  // --------- VECTOR ERASER HELPERS ---------
+  const distToSegment = (p, a, b) => {
+    const vx = b.x - a.x;
+    const vy = b.y - a.y;
+    const wx = p.x - a.x;
+    const wy = p.y - a.y;
 
-    const pos = getMousePos(e);
-    const ctx = canvasRef.current.getContext("2d");
+    const c1 = vx * wx + vy * wy;
+    if (c1 <= 0) return Math.hypot(p.x - a.x, p.y - a.y);
 
-    if (tool === "pen" && isPathActiveRef.current && isDrawingRef.current) {
-      ctx.lineTo(pos.x, pos.y);
-      ctx.stroke();
+    const c2 = vx * vx + vy * vy;
+    if (c2 <= c1) return Math.hypot(p.x - b.x, p.y - b.y);
 
-      const prev = lastPosRef.current;
-      lastPosRef.current = pos;
+    const t = c1 / c2;
+    const px = a.x + t * vx;
+    const py = a.y + t * vy;
+    return Math.hypot(p.x - px, p.y - py);
+  };
 
-      setPhases((prevState) => {
-        const updated = deepCopy(prevState);
-        updated[currentPhaseIndex].lines.push({
-          x1: prev.x,
-          y1: prev.y,
-          x2: pos.x,
-          y2: pos.y,
-          color: penColor
-        });
+  const strokeIntersects = (stroke, p, r) => {
+    const pts = stroke.points;
+    for (let i = 1; i < pts.length; i++) {
+      if (distToSegment(p, pts[i - 1], pts[i]) <= r) return true;
+    }
+    return false;
+  };
+
+  const ERASE_RADIUS = 10;
+
+  // ---------------- POINTER ----------------
+  const handlePointerDown = (e) => {
+    if (activePointerIdRef.current !== null) return;
+    activePointerIdRef.current = e.pointerId;
+    e.preventDefault();
+    updateCursorCSS(e);
+
+    const pos = getCanvasPos(e);
+
+    if (tool === "eraser") {
+      pushHistory();
+      setPhases((prev) => {
+        const updated = deepCopy(prev);
+        updated[currentPhaseIndex].strokes =
+          updated[currentPhaseIndex].strokes.filter(
+            (s) => !strokeIntersects(s, pos, ERASE_RADIUS)
+          );
         return updated;
       });
+      isDrawingRef.current = true;
+      return;
     }
 
-    if (tool === "eraser" && isDrawingRef.current) {
-      ctx.save();
-      ctx.globalCompositeOperation = "destination-out";
-      ctx.beginPath();
-      ctx.arc(pos.x, pos.y, 10, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.restore();
-    }
+    // Pen & Arrow both start a freehand path
+    pushHistory();
+    isDrawingRef.current = true;
+
+    const stroke = {
+      id: uid(),
+      type: tool === "arrow" ? "arrow" : "freehand",
+      color: penColor,
+      width: 3,
+      points: [pos]
+    };
+
+    setPhases((prev) => {
+      const updated = deepCopy(prev);
+      updated[currentPhaseIndex].strokes.push(stroke);
+      return updated;
+    });
   };
 
-  const handleMouseUp = () => {
+  const handlePointerMove = (e) => {
+    updateCursorCSS(e);
+    if (!isDrawingRef.current) return;
+    if (e.pointerId !== activePointerIdRef.current) return;
+
+    const pos = getCanvasPos(e);
+
+    if (tool === "eraser") {
+      setPhases((prev) => {
+        const updated = deepCopy(prev);
+        updated[currentPhaseIndex].strokes =
+          updated[currentPhaseIndex].strokes.filter(
+            (s) => !strokeIntersects(s, pos, ERASE_RADIUS)
+          );
+        return updated;
+      });
+      return;
+    }
+
+    setPhases((prev) => {
+      const updated = deepCopy(prev);
+      const strokes = updated[currentPhaseIndex].strokes;
+      const s = strokes[strokes.length - 1];
+      if (!s) return updated;
+
+      const last = s.points[s.points.length - 1];
+      if (dist(last, pos) >= MIN_DIST) {
+        s.points.push(pos);
+      }
+      return updated;
+    });
+  };
+
+  const handlePointerUp = () => {
     isDrawingRef.current = false;
-    isPathActiveRef.current = false;
+    activePointerIdRef.current = null;
   };
 
-  // ---------------- REDRAW FROM STATE ----------------
+  // ---------------- REDRAW ----------------
   useEffect(() => {
     if (!canvasRef.current) return;
     const ctx = canvasRef.current.getContext("2d");
 
     ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
-    ctx.globalCompositeOperation = "source-over";
-    ctx.setLineDash([]);
 
-    currentPhase.lines.forEach((l) => {
-      ctx.strokeStyle = l.color;
-      ctx.lineWidth = 3;
+    const drawSmoothPath = (pts, color, w) => {
+      if (pts.length < 2) return;
+      ctx.strokeStyle = color;
+      ctx.lineWidth = w;
       ctx.lineCap = "round";
       ctx.lineJoin = "round";
+
       ctx.beginPath();
-      ctx.moveTo(l.x1, l.y1);
-      ctx.lineTo(l.x2, l.y2);
+      ctx.moveTo(pts[0].x, pts[0].y);
+
+      for (let i = 1; i < pts.length - 1; i++) {
+        const midX = (pts[i].x + pts[i + 1].x) / 2;
+        const midY = (pts[i].y + pts[i + 1].y) / 2;
+        ctx.quadraticCurveTo(pts[i].x, pts[i].y, midX, midY);
+      }
+
+      const last = pts[pts.length - 1];
+      ctx.lineTo(last.x, last.y);
       ctx.stroke();
+    };
+
+    const drawArrowHead = (a, b, color, w) => {
+      const dx = b.x - a.x;
+      const dy = b.y - a.y;
+      const angle = Math.atan2(dy, dx);
+      const headLen = 10 + w;
+
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.moveTo(b.x, b.y);
+      ctx.lineTo(
+        b.x - headLen * Math.cos(angle - Math.PI / 6),
+        b.y - headLen * Math.sin(angle - Math.PI / 6)
+      );
+      ctx.lineTo(
+        b.x - headLen * Math.cos(angle + Math.PI / 6),
+        b.y - headLen * Math.sin(angle + Math.PI / 6)
+      );
+      ctx.closePath();
+      ctx.fill();
+    };
+
+    currentPhase.strokes.forEach((s) => {
+      if (s.type === "freehand") {
+        drawSmoothPath(s.points, s.color, s.width);
+      }
+
+      if (s.type === "arrow") {
+  if (s.points.length >= 2) {
+    const a = s.points[s.points.length - 2];
+    const b = s.points[s.points.length - 1];
+
+    // Shorten the path slightly so it doesn't run through the arrowhead
+    const dx = b.x - a.x;
+    const dy = b.y - a.y;
+    const len = Math.hypot(dx, dy) || 1;
+    const trim = 10 + s.width; // match head length
+    const bx = b.x - (dx / len) * trim;
+    const by = b.y - (dy / len) * trim;
+
+    const trimmed = [...s.points.slice(0, -1), { x: bx, y: by }];
+
+    drawSmoothPath(trimmed, s.color, s.width);
+    drawArrowHead(a, b, s.color, s.width);
+  } else {
+    drawSmoothPath(s.points, s.color, s.width);
+  }
+}
+
     });
   }, [currentPhase]);
-
   // ---------------- CLEAR ----------------
   const clearCanvas = () => {
     pushHistory();
     setPhases((prev) => {
       const updated = deepCopy(prev);
-      updated[currentPhaseIndex].lines = [];
+      updated[currentPhaseIndex].strokes = [];
       return updated;
     });
   };
@@ -309,7 +371,27 @@ export default function StrategyCanvas() {
     reader.onload = (ev) => {
       const data = JSON.parse(ev.target.result);
       if (Array.isArray(data.phases)) {
-        setPhases(data.phases);
+        const migrated = data.phases.map((p) => {
+          if (!p.strokes && Array.isArray(p.lines)) {
+            return {
+              ...p,
+              strokes: p.lines.map((l) => ({
+                id: uid(),
+                type: "freehand",
+                color: l.color,
+                width: 3,
+                points: [
+                  { x: l.x1, y: l.y1 },
+                  { x: l.x2, y: l.y2 }
+                ]
+              })),
+              lines: []
+            };
+          }
+          return p;
+        });
+
+        setPhases(migrated);
         setCurrentPhaseIndex(0);
       }
     };
@@ -326,24 +408,22 @@ export default function StrategyCanvas() {
         position: "relative",
         width: "100vw",
         height: "100dvh",
-        background: "radial-gradient(1200px 600px at center, #1a1d24 0%, #0f1115 60%)",
+        background:
+          "radial-gradient(1200px 600px at center, #1a1d24 0%, #0f1115 60%)",
         userSelect: "none",
         WebkitUserSelect: "none",
         WebkitTouchCallout: "none",
         overflow: "hidden",
         touchAction: "none",
-        boxShadow: "0 0 0 1px rgba(255,255,255,0.05), 0 20px 60px rgba(0,0,0,0.6)",
+        boxShadow:
+          "0 0 0 1px rgba(255,255,255,0.05), 0 20px 60px rgba(0,0,0,0.6)",
         borderRadius: 12,
-        /* 📱 Reserve space for mobile dock */
-...(isMobile ? { paddingBottom: 96 } : {}),
-
-/* 🛡 Mobile interaction shield zone */
-...(isMobile
-  ? {
-      WebkitTapHighlightColor: "transparent"
-    }
-  : {})
-
+        ...(isMobile ? { paddingBottom: 96 } : {}),
+        ...(isMobile
+          ? {
+              WebkitTapHighlightColor: "transparent"
+            }
+          : {})
       }}
     >
       <Toolbar
@@ -381,7 +461,7 @@ export default function StrategyCanvas() {
               name: `Phase ${p.length + 1}`,
               map: currentPhase.map,
               players: deepCopy(currentPhase.players),
-              lines: [],
+              strokes: [],
               rotations: [],
               undoStack: [],
               redoStack: []
@@ -438,14 +518,61 @@ export default function StrategyCanvas() {
           }}
         />
 
+        {/* VALOPLANT-STYLE DOM CURSORS (DESKTOP ONLY) */}
+        {!isMobile && cursorCSS && (tool === "pen" || tool === "arrow") && (
+          <div
+            style={{
+              position: "absolute",
+              left: cursorCSS.x,
+              top: cursorCSS.y,
+              width: 14,
+              height: 14,
+              borderRadius: "50%",
+              border: "1.5px solid rgba(255,255,255,0.95)",
+              boxShadow: "0 0 6px rgba(255,255,255,0.35)",
+              transform: "translate(-50%, -50%)",
+              pointerEvents: "none",
+              zIndex: 5
+            }}
+          >
+            <div
+              style={{
+                position: "absolute",
+                left: "50%",
+                top: "50%",
+                width: 4,
+                height: 4,
+                borderRadius: "50%",
+                background: penColor,
+                transform: "translate(-50%, -50%)",
+                boxShadow: "0 0 4px rgba(0,0,0,0.6)"
+              }}
+            />
+          </div>
+        )}
+
+        {!isMobile && cursorCSS && tool === "eraser" && (
+          <div
+            style={{
+              position: "absolute",
+              left: cursorCSS.x,
+              top: cursorCSS.y,
+              width: 16,
+              height: 16,
+              background: penColor,
+              border: "2px solid rgba(0,0,0,0.65)",
+              boxShadow: `0 0 6px ${penColor}88`,
+              transform: "translate(-50%, -50%)",
+              pointerEvents: "none",
+              zIndex: 5
+            }}
+          />
+        )}
+
         <canvas
           ref={canvasRef}
           width={1000}
           height={600}
-          onMouseDown={handleMouseDown}
-          onMouseMove={handleMouseMove}
-          onMouseUp={handleMouseUp}
-          onMouseLeave={handleMouseUp}
           onPointerDown={handlePointerDown}
           onPointerMove={handlePointerMove}
           onPointerUp={handlePointerUp}
@@ -456,7 +583,11 @@ export default function StrategyCanvas() {
             width: "100%",
             height: "100%",
             zIndex: 1,
-            touchAction: "none"
+            touchAction: "none",
+            cursor:
+              !isMobile && (tool === "pen" || tool === "eraser" || tool === "arrow")
+                ? "none"
+                : "default"
           }}
         />
 
@@ -487,6 +618,11 @@ export default function StrategyCanvas() {
     </div>
   );
 }
+
+
+
+
+
 
 
 

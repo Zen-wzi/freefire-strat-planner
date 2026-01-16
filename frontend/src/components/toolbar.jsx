@@ -24,7 +24,6 @@ export default function Toolbar({
   const [name, setName] = useState(phaseName);
   const [activeTool, setActiveTool] = useState("pen");
 
-  // ✅ SAFE mobile detection
   const [isMobile, setIsMobile] = useState(false);
   const [expanded, setExpanded] = useState(true);
 
@@ -69,129 +68,77 @@ export default function Toolbar({
 
   return (
     <>
-      {/* 📱 MOBILE EXPAND BUTTON */}
       {isMobile && !expanded && (
-        <div
+        <button
+          {...pressHandlers}
+          onClick={() => setExpanded(true)}
           style={{
             position: "fixed",
-            bottom: "calc(12px + env(safe-area-inset-bottom))",
+            bottom: "calc(16px + env(safe-area-inset-bottom))",
             left: "50%",
             transform: "translateX(-50%)",
             zIndex: 50,
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            gap: 6
+            width: 56,
+            height: 56,
+            borderRadius: 16,
+            background: "#1f222a",
+            color: "#fff",
+            fontSize: 22,
+            border: "1px solid #2f3542",
+            boxShadow:
+              "0 8px 24px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.05)",
+            WebkitTapHighlightColor: "transparent",
+            touchAction: "manipulation",
+            transition: "transform 120ms ease, filter 120ms ease"
           }}
         >
-          <button
-            {...pressHandlers}
-            onClick={() => setExpanded(true)}
-            style={{
-              width: 56,
-              height: 56,
-              borderRadius: 16,
-              background: "#1f222a",
-              color: "#fff",
-              fontSize: 22,
-              border: "1px solid #2f3542",
-              boxShadow:
-                "0 8px 24px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.05)",
-              WebkitTapHighlightColor: "transparent",
-              touchAction: "manipulation",
-              transition: "transform 120ms ease, filter 120ms ease"
-            }}
-            title="Show tools"
-          >
-            ⬆️
-          </button>
-          <div
-            style={{
-              fontSize: 10,
-              color: "#9aa0aa",
-              opacity: 0.7
-            }}
-          >
-            Tools
-          </div>
-        </div>
+          ⬆️
+        </button>
       )}
 
-      {/* 🧰 TOOLBAR */}
       {(!isMobile || expanded) && (
         <div
           style={{
             position: isMobile ? "fixed" : "absolute",
             zIndex: 20,
-
             top: isMobile ? "auto" : 16,
             bottom: isMobile ? 0 : "auto",
             left: isMobile ? "50%" : 16,
             transform: isMobile
               ? `translateX(-50%) translateY(${expanded ? "0%" : "100%"})`
               : "none",
-
             opacity: isMobile ? (expanded ? 1 : 0) : 1,
-
             width: isMobile ? "100vw" : 260,
             maxWidth: isMobile ? "100vw" : 360,
             padding: isMobile ? 16 : 12,
-
             background: "rgba(18,18,18,0.92)",
             backdropFilter: "blur(10px)",
             WebkitBackdropFilter: "blur(10px)",
-
             borderRadius: isMobile ? "20px 20px 0 0" : 16,
             display: "flex",
             flexDirection: "column",
             gap: isMobile ? 16 : 12,
-
             boxShadow: isMobile
               ? "0 -12px 30px rgba(0,0,0,0.6)"
               : "0 12px 30px rgba(0,0,0,0.5)",
-
-            outline:
-              isMobile && expanded
-                ? "1px solid rgba(255,255,255,0.06)"
-                : "none",
-
             fontFamily: "Inter, system-ui, sans-serif",
-
             transition:
               "transform 260ms cubic-bezier(0.22, 0.61, 0.36, 1), opacity 180ms ease"
           }}
         >
-          {/* 📱 GRIP BAR */}
           {isMobile && (
             <div
               onClick={() => setExpanded(false)}
               style={{
                 alignSelf: "center",
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                gap: 6,
+                width: 48,
+                height: 5,
+                borderRadius: 3,
+                background: "#3a3f4a",
+                marginBottom: 10,
                 cursor: "pointer"
               }}
-            >
-              <div
-                style={{
-                  width: 48,
-                  height: 5,
-                  borderRadius: 3,
-                  background: "#3a3f4a"
-                }}
-              />
-              <div
-                style={{
-                  fontSize: 10,
-                  color: "#9aa0aa",
-                  opacity: 0.6
-                }}
-              >
-                Tap to collapse
-              </div>
-            </div>
+            />
           )}
 
           {/* PHASE HEADER */}
@@ -251,7 +198,6 @@ export default function Toolbar({
                       ...iconBtn,
                       transition: "transform 120ms ease, filter 120ms ease"
                     }}
-                    title="Rename phase"
                   >
                     ✏️
                   </button>
@@ -263,19 +209,7 @@ export default function Toolbar({
           <Divider />
 
           {/* DRAW TOOLS */}
-          <div
-            style={{
-              ...rowStyle,
-              boxShadow:
-                activeTool === "pen"
-                  ? "0 0 0 1px rgba(46,213,115,0.25), 0 0 10px rgba(46,213,115,0.25)"
-                  : activeTool === "eraser"
-                  ? "0 0 0 1px rgba(255,71,87,0.25), 0 0 10px rgba(255,71,87,0.25)"
-                  : "none",
-              padding: 4,
-              borderRadius: 12
-            }}
-          >
+          <div style={rowStyle}>
             <button
               {...pressHandlers}
               style={toolBtn(activeTool === "pen", "#2ed573", isMobile)}
@@ -283,10 +217,22 @@ export default function Toolbar({
                 setTool("pen");
                 setActiveTool("pen");
               }}
-              title="Pen"
             >
               ✏️
             </button>
+
+            {/* NEW: ARROW TOOL */}
+            <button
+              {...pressHandlers}
+              style={toolBtn(activeTool === "arrow", "#1e90ff", isMobile)}
+              onClick={() => {
+                setTool("arrow");
+                setActiveTool("arrow");
+              }}
+            >
+              ➤
+            </button>
+
             <button
               {...pressHandlers}
               style={toolBtn(activeTool === "eraser", "#ff4757", isMobile)}
@@ -294,10 +240,10 @@ export default function Toolbar({
                 setTool("eraser");
                 setActiveTool("eraser");
               }}
-              title="Eraser"
             >
               ⛔
             </button>
+
             <input
               type="color"
               onChange={(e) => setColor(e.target.value)}
@@ -308,14 +254,9 @@ export default function Toolbar({
                 border: "none",
                 background: "none"
               }}
-              title="Pick color"
             />
-            <button
-              {...pressHandlers}
-              style={btn(baseBtn)}
-              onClick={clearCanvas}
-              title="Clear canvas"
-            >
+
+            <button {...pressHandlers} style={btn(baseBtn)} onClick={clearCanvas}>
               🗑
             </button>
           </div>
@@ -329,27 +270,19 @@ export default function Toolbar({
               marginTop: -2
             }}
           >
-            {activeTool === "pen" ? "Drawing mode" : "Erase mode"}
+            {activeTool === "pen" && "Drawing mode"}
+            {activeTool === "arrow" && "Arrow mode"}
+            {activeTool === "eraser" && "Erase mode"}
           </div>
 
           <div style={{ height: 6 }} />
-
-          {/* HISTORY */}
+            
+                    {/* HISTORY */}
           <div style={rowStyle}>
-            <button
-              {...pressHandlers}
-              style={btn(baseBtn)}
-              onClick={undo}
-              title="Undo"
-            >
+            <button {...pressHandlers} style={btn(baseBtn)} onClick={undo}>
               ↶
             </button>
-            <button
-              {...pressHandlers}
-              style={btn(baseBtn)}
-              onClick={redo}
-              title="Redo"
-            >
+            <button {...pressHandlers} style={btn(baseBtn)} onClick={redo}>
               ↷
             </button>
           </div>
@@ -365,17 +298,11 @@ export default function Toolbar({
                 ...selectStyle,
                 height: isMobile ? 40 : 32
               }}
-              title="Select map"
             >
               <option value="/maps/bermuda.jpg">Bermuda</option>
               <option value="/maps/purgatory.jpg">Purgatory</option>
             </select>
-            <button
-              {...pressHandlers}
-              style={btn(baseBtn)}
-              onClick={save}
-              title="Save"
-            >
+            <button {...pressHandlers} style={btn(baseBtn)} onClick={save}>
               💾
             </button>
           </div>
@@ -384,28 +311,13 @@ export default function Toolbar({
 
           {/* PHASE NAV */}
           <div style={rowStyle}>
-            <button
-              {...pressHandlers}
-              style={btn(baseBtn)}
-              onClick={prevPhase}
-              title="Previous phase"
-            >
+            <button {...pressHandlers} style={btn(baseBtn)} onClick={prevPhase}>
               ◀
             </button>
-            <button
-              {...pressHandlers}
-              style={btn(baseBtn)}
-              onClick={addPhase}
-              title="Add phase"
-            >
+            <button {...pressHandlers} style={btn(baseBtn)} onClick={addPhase}>
               ＋
             </button>
-            <button
-              {...pressHandlers}
-              style={btn(baseBtn)}
-              onClick={nextPhase}
-              title="Next phase"
-            >
+            <button {...pressHandlers} style={btn(baseBtn)} onClick={nextPhase}>
               ▶
             </button>
           </div>
@@ -468,6 +380,9 @@ const selectStyle = {
   borderRadius: 10,
   padding: "0 8px"
 };
+
+
+
 
 
 
