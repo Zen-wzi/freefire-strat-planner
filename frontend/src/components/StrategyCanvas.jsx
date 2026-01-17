@@ -8,7 +8,7 @@ const deepCopy = (v) => JSON.parse(JSON.stringify(v));
 const uid = () => Math.random().toString(36).slice(2);
 
 // --- smoothing helpers ---
-const MIN_DIST = 2; // px in canvas-space (1000x600)
+const MIN_DIST = 2;
 const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
 
 export default function StrategyCanvas() {
@@ -19,6 +19,7 @@ export default function StrategyCanvas() {
   const activePointerIdRef = useRef(null);
 
   const [cursorCSS, setCursorCSS] = useState(null);
+  const [insideStage, setInsideStage] = useState(false);
 
   const [isMobile, setIsMobile] = useState(false);
   const [containerSize, setContainerSize] = useState({ width: 1000, height: 600 });
@@ -147,14 +148,40 @@ export default function StrategyCanvas() {
     };
   };
 
+  // Track cursor at CONTAINER level, but only render tactically inside STAGE
   const updateCursorCSS = (e) => {
-    if (!stageRef.current) return;
-    const rect = stageRef.current.getBoundingClientRect();
-    setCursorCSS({
-      x: e.clientX - rect.left,
-      y: e.clientY - rect.top
-    });
-  };
+  if (!containerRef.current || !canvasRef.current) return;
+
+  // If we're over ANY toolbar surface, hide tactical cursor
+  const overUIPanel = e.target.closest("[data-ui-panel]");
+
+  if (overUIPanel) {
+    setInsideStage(false);
+    setCursorCSS(null);
+    return;
+  }
+
+  const containerRect = containerRef.current.getBoundingClientRect();
+  const canvasRect = canvasRef.current.getBoundingClientRect();
+
+  const inside =
+    e.clientX >= canvasRect.left &&
+    e.clientX <= canvasRect.right &&
+    e.clientY >= canvasRect.top &&
+    e.clientY <= canvasRect.bottom;
+
+  setInsideStage(inside);
+
+  if (!inside) {
+    setCursorCSS(null);
+    return;
+  }
+
+  setCursorCSS({
+    x: e.clientX - containerRect.left,
+    y: e.clientY - containerRect.top
+  });
+};
 
   // --------- VECTOR ERASER HELPERS ---------
   const distToSegment = (p, a, b) => {
@@ -265,8 +292,8 @@ export default function StrategyCanvas() {
     activePointerIdRef.current = null;
   };
 
-  // ---------------- REDRAW ----------------
-  useEffect(() => {
+    // ---------------- REDRAW ----------------
+    useEffect(() => {
     if (!canvasRef.current) return;
     const ctx = canvasRef.current.getContext("2d");
 
@@ -293,25 +320,53 @@ export default function StrategyCanvas() {
       ctx.stroke();
     };
 
-    const drawArrowHead = (a, b, color, w) => {
+    const drawTaperedTail = (a, b, color, w) => {
+      const steps = 6;
+      for (let i = 0; i < steps; i++) {
+        const t1 = i / steps;
+        const t2 = (i + 1) / steps;
+        const x1 = a.x + (b.x - a.x) * t1;
+        const y1 = a.y + (b.y - a.y) * t1;
+        const x2 = a.x + (b.x - a.x) * t2;
+        const y2 = a.y + (b.y - a.y) * t2;
+
+        ctx.strokeStyle = color;
+        ctx.lineWidth = w * (1 - t2 * 0.6);
+        ctx.beginPath();
+        ctx.moveTo(x1, y1);
+        ctx.lineTo(x2, y2);
+        ctx.stroke();
+      }
+    };
+
+    const drawChevronHead = (a, b, color, w, velocity) => {
       const dx = b.x - a.x;
       const dy = b.y - a.y;
       const angle = Math.atan2(dy, dx);
-      const headLen = 10 + w;
 
-      ctx.fillStyle = color;
+      const speedScale = Math.min(2, Math.max(0.7, velocity / 6));
+      const len = (12 + w * 1.2) * speedScale;
+      const spread = Math.PI / 7;
+
+      const left = {
+        x: b.x - len * Math.cos(angle - spread),
+        y: b.y - len * Math.sin(angle - spread)
+      };
+
+      const right = {
+        x: b.x - len * Math.cos(angle + spread),
+        y: b.y - len * Math.sin(angle + spread)
+      };
+
+      ctx.strokeStyle = color;
+      ctx.lineWidth = w * 0.9;
+      ctx.lineCap = "round";
+
       ctx.beginPath();
-      ctx.moveTo(b.x, b.y);
-      ctx.lineTo(
-        b.x - headLen * Math.cos(angle - Math.PI / 6),
-        b.y - headLen * Math.sin(angle - Math.PI / 6)
-      );
-      ctx.lineTo(
-        b.x - headLen * Math.cos(angle + Math.PI / 6),
-        b.y - headLen * Math.sin(angle + Math.PI / 6)
-      );
-      ctx.closePath();
-      ctx.fill();
+      ctx.moveTo(left.x, left.y);
+      ctx.lineTo(b.x, b.y);
+      ctx.lineTo(right.x, right.y);
+      ctx.stroke();
     };
 
     currentPhase.strokes.forEach((s) => {
@@ -320,29 +375,43 @@ export default function StrategyCanvas() {
       }
 
       if (s.type === "arrow") {
-  if (s.points.length >= 2) {
-    const a = s.points[s.points.length - 2];
-    const b = s.points[s.points.length - 1];
+        if (s.points.length >= 2) {
+          const a = s.points[s.points.length - 2];
+          const b = s.points[s.points.length - 1];
+          const velocity = dist(a, b);
 
-    // Shorten the path slightly so it doesn't run through the arrowhead
-    const dx = b.x - a.x;
-    const dy = b.y - a.y;
-    const len = Math.hypot(dx, dy) || 1;
-    const trim = 10 + s.width; // match head length
-    const bx = b.x - (dx / len) * trim;
-    const by = b.y - (dy / len) * trim;
+          const dx = b.x - a.x;
+          const dy = b.y - a.y;
+          const len = Math.hypot(dx, dy) || 1;
 
-    const trimmed = [...s.points.slice(0, -1), { x: bx, y: by }];
+          const speedScale = Math.min(2, Math.max(0.7, velocity / 6));
+          const trim = (12 + s.width * 1.2) * speedScale;
 
-    drawSmoothPath(trimmed, s.color, s.width);
-    drawArrowHead(a, b, s.color, s.width);
-  } else {
-    drawSmoothPath(s.points, s.color, s.width);
-  }
-}
+          const bx = b.x - (dx / len) * trim;
+          const by = b.y - (dy / len) * trim;
 
+          const trimmed = [...s.points.slice(0, -1), { x: bx, y: by }];
+
+          // main body
+          drawSmoothPath(trimmed.slice(0, -1), s.color, s.width);
+
+          // tapered tail into the head
+          if (trimmed.length >= 2) {
+            const tA = trimmed[trimmed.length - 2];
+            const tB = trimmed[trimmed.length - 1];
+            drawTaperedTail(tA, tB, s.color, s.width);
+          }
+
+          // chevron head
+          drawChevronHead(a, b, s.color, s.width, velocity);
+        } else {
+          drawSmoothPath(s.points, s.color, s.width);
+        }
+      }
     });
   }, [currentPhase]);
+
+
   // ---------------- CLEAR ----------------
   const clearCanvas = () => {
     pushHistory();
@@ -371,27 +440,7 @@ export default function StrategyCanvas() {
     reader.onload = (ev) => {
       const data = JSON.parse(ev.target.result);
       if (Array.isArray(data.phases)) {
-        const migrated = data.phases.map((p) => {
-          if (!p.strokes && Array.isArray(p.lines)) {
-            return {
-              ...p,
-              strokes: p.lines.map((l) => ({
-                id: uid(),
-                type: "freehand",
-                color: l.color,
-                width: 3,
-                points: [
-                  { x: l.x1, y: l.y1 },
-                  { x: l.x2, y: l.y2 }
-                ]
-              })),
-              lines: []
-            };
-          }
-          return p;
-        });
-
-        setPhases(migrated);
+        setPhases(data.phases);
         setCurrentPhaseIndex(0);
       }
     };
@@ -402,6 +451,7 @@ export default function StrategyCanvas() {
   return (
     <div
       ref={containerRef}
+      onPointerMove={updateCursorCSS}
       onContextMenu={(e) => e.preventDefault()}
       onDragStart={(e) => e.preventDefault()}
       style={{
@@ -483,7 +533,11 @@ export default function StrategyCanvas() {
         style={{
           position: "absolute",
           inset: 0,
-          ...(isMobile ? { bottom: 96 } : {})
+          ...(isMobile ? { bottom: 96 } : {}),
+          cursor:
+            !isMobile && (tool === "pen" || tool === "eraser" || tool === "arrow")
+              ? "none"
+              : "default"
         }}
       >
         {currentPhase.map && (
@@ -519,7 +573,7 @@ export default function StrategyCanvas() {
         />
 
         {/* VALOPLANT-STYLE DOM CURSORS (DESKTOP ONLY) */}
-        {!isMobile && cursorCSS && (tool === "pen" || tool === "arrow") && (
+        {!isMobile && insideStage && cursorCSS && (tool === "pen" || tool === "arrow") && (
           <div
             style={{
               position: "absolute",
@@ -532,7 +586,7 @@ export default function StrategyCanvas() {
               boxShadow: "0 0 6px rgba(255,255,255,0.35)",
               transform: "translate(-50%, -50%)",
               pointerEvents: "none",
-              zIndex: 5
+              zIndex: 1000
             }}
           >
             <div
@@ -551,7 +605,7 @@ export default function StrategyCanvas() {
           </div>
         )}
 
-        {!isMobile && cursorCSS && tool === "eraser" && (
+        {!isMobile && insideStage && cursorCSS && tool === "eraser" && (
           <div
             style={{
               position: "absolute",
@@ -564,7 +618,7 @@ export default function StrategyCanvas() {
               boxShadow: `0 0 6px ${penColor}88`,
               transform: "translate(-50%, -50%)",
               pointerEvents: "none",
-              zIndex: 5
+              zIndex: 1000
             }}
           />
         )}
@@ -618,6 +672,8 @@ export default function StrategyCanvas() {
     </div>
   );
 }
+
+
 
 
 

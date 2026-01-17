@@ -97,7 +97,7 @@ export default function Toolbar({
       )}
 
       {(!isMobile || expanded) && (
-        <div
+        <div data-ui-panel
           style={{
             position: isMobile ? "fixed" : "absolute",
             zIndex: 20,
