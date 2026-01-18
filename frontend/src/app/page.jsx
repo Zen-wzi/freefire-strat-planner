@@ -13,11 +13,22 @@ export default function Home() {
   }, []);
 
   return (
-    <div style={{ width: "100vw", height: "100dvh" }}>
+    <div
+      style={{
+        width: "100vw",
+        height: "100dvh",
+        overflow: "hidden",
+        display: "flex",
+        flexDirection: "row",
+        background: "#0f1115"
+      }}
+    >
+      {/* The entire app frame now lives inside StrategyCanvas */}
       <StrategyCanvas />
     </div>
   );
 }
+
 
 
 

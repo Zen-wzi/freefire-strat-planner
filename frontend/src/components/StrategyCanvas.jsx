@@ -11,6 +11,13 @@ const uid = () => Math.random().toString(36).slice(2);
 const MIN_DIST = 2;
 const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
 
+// --- characters (static for C.2) ---
+const CHARACTERS = [
+  "oscar","tatsuya","xayne","chrono","a124","skyler","homer","nero","ignis",
+  "morse","alok","koda","santino","dimitri","kassie","k","clu","steffie",
+  "kenta","orion","wukong","ryden","iris"
+];
+
 export default function StrategyCanvas() {
   const containerRef = useRef(null);
   const stageRef = useRef(null);
@@ -26,6 +33,7 @@ export default function StrategyCanvas() {
   const [selectedPlayer, setSelectedPlayer] = useState(null);
   const [tool, setTool] = useState("pen");
   const [penColor, setPenColor] = useState("yellow");
+  const [teamMode, setTeamMode] = useState("ally"); // "ally" | "enemy"
 
   useEffect(() => {
     setIsMobile(window.innerWidth < 768);
@@ -150,38 +158,36 @@ export default function StrategyCanvas() {
 
   // Track cursor at CONTAINER level, but only render tactically inside STAGE
   const updateCursorCSS = (e) => {
-  if (!containerRef.current || !canvasRef.current) return;
+    if (!containerRef.current || !canvasRef.current) return;
 
-  // If we're over ANY toolbar surface, hide tactical cursor
-  const overUIPanel = e.target.closest("[data-ui-panel]");
+    const overUIPanel = e.target.closest("[data-ui-panel]");
+    if (overUIPanel) {
+      setInsideStage(false);
+      setCursorCSS(null);
+      return;
+    }
 
-  if (overUIPanel) {
-    setInsideStage(false);
-    setCursorCSS(null);
-    return;
-  }
+    const containerRect = containerRef.current.getBoundingClientRect();
+    const canvasRect = canvasRef.current.getBoundingClientRect();
 
-  const containerRect = containerRef.current.getBoundingClientRect();
-  const canvasRect = canvasRef.current.getBoundingClientRect();
+    const inside =
+      e.clientX >= canvasRect.left &&
+      e.clientX <= canvasRect.right &&
+      e.clientY >= canvasRect.top &&
+      e.clientY <= canvasRect.bottom;
 
-  const inside =
-    e.clientX >= canvasRect.left &&
-    e.clientX <= canvasRect.right &&
-    e.clientY >= canvasRect.top &&
-    e.clientY <= canvasRect.bottom;
+    setInsideStage(inside);
 
-  setInsideStage(inside);
+    if (!inside) {
+      setCursorCSS(null);
+      return;
+    }
 
-  if (!inside) {
-    setCursorCSS(null);
-    return;
-  }
-
-  setCursorCSS({
-    x: e.clientX - containerRect.left,
-    y: e.clientY - containerRect.top
-  });
-};
+    setCursorCSS({
+      x: e.clientX - containerRect.left,
+      y: e.clientY - containerRect.top
+    });
+  };
 
   // --------- VECTOR ERASER HELPERS ---------
   const distToSegment = (p, a, b) => {
@@ -235,7 +241,6 @@ export default function StrategyCanvas() {
       return;
     }
 
-    // Pen & Arrow both start a freehand path
     pushHistory();
     isDrawingRef.current = true;
 
@@ -291,9 +296,9 @@ export default function StrategyCanvas() {
     isDrawingRef.current = false;
     activePointerIdRef.current = null;
   };
-
-    // ---------------- REDRAW ----------------
-    useEffect(() => {
+  // --- END PART 1 ---
+  // ---------------- REDRAW ----------------
+  useEffect(() => {
     if (!canvasRef.current) return;
     const ctx = canvasRef.current.getContext("2d");
 
@@ -392,17 +397,14 @@ export default function StrategyCanvas() {
 
           const trimmed = [...s.points.slice(0, -1), { x: bx, y: by }];
 
-          // main body
           drawSmoothPath(trimmed.slice(0, -1), s.color, s.width);
 
-          // tapered tail into the head
           if (trimmed.length >= 2) {
             const tA = trimmed[trimmed.length - 2];
             const tB = trimmed[trimmed.length - 1];
             drawTaperedTail(tA, tB, s.color, s.width);
           }
 
-          // chevron head
           drawChevronHead(a, b, s.color, s.width, velocity);
         } else {
           drawSmoothPath(s.points, s.color, s.width);
@@ -410,7 +412,6 @@ export default function StrategyCanvas() {
       }
     });
   }, [currentPhase]);
-
 
   // ---------------- CLEAR ----------------
   const clearCanvas = () => {
@@ -447,97 +448,94 @@ export default function StrategyCanvas() {
     reader.readAsText(file);
   };
 
-  // ---------------- RENDER ----------------
+  // ---------------- RENDER (VALOPLANT FRAME) ----------------
   return (
     <div
       ref={containerRef}
       onPointerMove={updateCursorCSS}
-      onContextMenu={(e) => e.preventDefault()}
-      onDragStart={(e) => e.preventDefault()}
       style={{
         position: "relative",
         width: "100vw",
         height: "100dvh",
-        background:
-          "radial-gradient(1200px 600px at center, #1a1d24 0%, #0f1115 60%)",
-        userSelect: "none",
-        WebkitUserSelect: "none",
-        WebkitTouchCallout: "none",
-        overflow: "hidden",
-        touchAction: "none",
-        boxShadow:
-          "0 0 0 1px rgba(255,255,255,0.05), 0 20px 60px rgba(0,0,0,0.6)",
-        borderRadius: 12,
-        ...(isMobile ? { paddingBottom: 96 } : {}),
-        ...(isMobile
-          ? {
-              WebkitTapHighlightColor: "transparent"
-            }
-          : {})
+        display: "flex",
+        flexDirection: "row",
+        background: "#0f1115",
+        overflow: "hidden"
       }}
     >
-      <Toolbar
-        setTool={setTool}
-        setColor={setPenColor}
-        clearCanvas={clearCanvas}
-        save={handleSave}
-        load={handleLoad}
-        undo={undo}
-        redo={redo}
-        currentPhaseMap={currentPhase.map}
-        phaseIndex={currentPhaseIndex}
-        totalPhases={phases.length}
-        phaseName={currentPhase.name}
-        renamePhase={(name) => {
-          setPhases((prev) => {
-            const updated = deepCopy(prev);
-            updated[currentPhaseIndex].name = name;
-            return updated;
-          });
+      {/* LEFT PANEL */}
+      <div
+        data-ui-panel
+        style={{
+          width: 280,
+          height: "100%",
+          background: "rgba(18,18,18,0.95)",
+          borderRight: "1px solid #1f2430",
+          display: "flex",
+          flexDirection: "column",
+          zIndex: 10
         }}
-        onMapChange={(map) => {
-          pushHistory();
-          setPhases((prev) => {
-            const updated = deepCopy(prev);
-            updated[currentPhaseIndex].map = map;
-            return updated;
-          });
-        }}
-        addPhase={() => {
-          setPhases((p) => [
-            ...p,
-            {
-              id: p.length + 1,
-              name: `Phase ${p.length + 1}`,
-              map: currentPhase.map,
-              players: deepCopy(currentPhase.players),
-              strokes: [],
-              rotations: [],
-              undoStack: [],
-              redoStack: []
-            }
-          ]);
-          setCurrentPhaseIndex(phases.length);
-        }}
-        prevPhase={() => setCurrentPhaseIndex((i) => Math.max(0, i - 1))}
-        nextPhase={() =>
-          setCurrentPhaseIndex((i) =>
-            Math.min(phases.length - 1, i + 1)
-          )
-        }
-      />
+      >
+        <Toolbar
+          setTool={setTool}
+          setColor={setPenColor}
+          clearCanvas={clearCanvas}
+          save={handleSave}
+          load={handleLoad}
+          undo={undo}
+          redo={redo}
+          currentPhaseMap={currentPhase.map}
+          phaseIndex={currentPhaseIndex}
+          totalPhases={phases.length}
+          phaseName={currentPhase.name}
+          renamePhase={(name) => {
+            setPhases((prev) => {
+              const updated = deepCopy(prev);
+              updated[currentPhaseIndex].name = name;
+              return updated;
+            });
+          }}
+          onMapChange={(map) => {
+            pushHistory();
+            setPhases((prev) => {
+              const updated = deepCopy(prev);
+              updated[currentPhaseIndex].map = map;
+              return updated;
+            });
+          }}
+          addPhase={() => {
+            setPhases((p) => [
+              ...p,
+              {
+                id: p.length + 1,
+                name: `Phase ${p.length + 1}`,
+                map: currentPhase.map,
+                players: deepCopy(currentPhase.players),
+                strokes: [],
+                rotations: [],
+                undoStack: [],
+                redoStack: []
+              }
+            ]);
+            setCurrentPhaseIndex(phases.length);
+          }}
+          prevPhase={() => setCurrentPhaseIndex((i) => Math.max(0, i - 1))}
+          nextPhase={() =>
+            setCurrentPhaseIndex((i) =>
+              Math.min(phases.length - 1, i + 1)
+            )
+          }
+        />
+      </div>
 
-      {/* 🎯 STAGE (locked playable area) */}
+      {/* CENTER MAP ZONE */}
       <div
         ref={stageRef}
         style={{
-          position: "absolute",
-          inset: 0,
-          ...(isMobile ? { bottom: 96 } : {}),
-          cursor:
-            !isMobile && (tool === "pen" || tool === "eraser" || tool === "arrow")
-              ? "none"
-              : "default"
+          position: "relative",
+          flex: 1,
+          height: "100%",
+          background: "radial-gradient(1200px 600px at center, #1a1d24 0%, #0f1115 60%)"
         }}
       >
         {currentPhase.map && (
@@ -549,76 +547,7 @@ export default function StrategyCanvas() {
               backgroundRepeat: "no-repeat",
               backgroundPosition: "center",
               backgroundSize: "contain",
-              pointerEvents: "none",
-              zIndex: 0
-            }}
-          />
-        )}
-
-        <div
-          style={{
-            position: "absolute",
-            inset: 0,
-            pointerEvents: "none",
-            zIndex: 0,
-            background: `
-              radial-gradient(
-                1200px 600px at center,
-                rgba(0,0,0,0) 0%,
-                rgba(0,0,0,0.15) 60%,
-                rgba(0,0,0,0.35) 100%
-              )
-            `
-          }}
-        />
-
-        {/* VALOPLANT-STYLE DOM CURSORS (DESKTOP ONLY) */}
-        {!isMobile && insideStage && cursorCSS && (tool === "pen" || tool === "arrow") && (
-          <div
-            style={{
-              position: "absolute",
-              left: cursorCSS.x,
-              top: cursorCSS.y,
-              width: 14,
-              height: 14,
-              borderRadius: "50%",
-              border: "1.5px solid rgba(255,255,255,0.95)",
-              boxShadow: "0 0 6px rgba(255,255,255,0.35)",
-              transform: "translate(-50%, -50%)",
-              pointerEvents: "none",
-              zIndex: 1000
-            }}
-          >
-            <div
-              style={{
-                position: "absolute",
-                left: "50%",
-                top: "50%",
-                width: 4,
-                height: 4,
-                borderRadius: "50%",
-                background: penColor,
-                transform: "translate(-50%, -50%)",
-                boxShadow: "0 0 4px rgba(0,0,0,0.6)"
-              }}
-            />
-          </div>
-        )}
-
-        {!isMobile && insideStage && cursorCSS && tool === "eraser" && (
-          <div
-            style={{
-              position: "absolute",
-              left: cursorCSS.x,
-              top: cursorCSS.y,
-              width: 16,
-              height: 16,
-              background: penColor,
-              border: "2px solid rgba(0,0,0,0.65)",
-              boxShadow: `0 0 6px ${penColor}88`,
-              transform: "translate(-50%, -50%)",
-              pointerEvents: "none",
-              zIndex: 1000
+              pointerEvents: "none"
             }}
           />
         )}
@@ -636,7 +565,6 @@ export default function StrategyCanvas() {
             inset: 0,
             width: "100%",
             height: "100%",
-            zIndex: 1,
             touchAction: "none",
             cursor:
               !isMobile && (tool === "pen" || tool === "eraser" || tool === "arrow")
@@ -669,9 +597,138 @@ export default function StrategyCanvas() {
           containerSize={containerSize}
         />
       </div>
+
+            {/* RIGHT PANEL (CHARACTERS – 2-COLUMN VERTICAL LIST) */}
+      <div
+        data-ui-panel
+        style={{
+          width: 260,
+          height: "100%",
+          background: "rgba(18,18,18,0.95)",
+          borderLeft: "1px solid #1f2430",
+          display: "flex",
+          flexDirection: "column",
+          overflow: "hidden"
+        }}
+      >
+        <style>{`
+          .char-scroll {
+            scrollbar-width: none;          /* Firefox */
+            -ms-overflow-style: none;       /* IE/Edge legacy */
+          }
+          .char-scroll::-webkit-scrollbar {
+            display: none;                  /* Chromium + Safari (Chrome, Edge, Brave, etc.) */
+          }
+        `}</style>
+
+        <div
+  style={{
+    padding: "12px 12px 8px",
+    borderBottom: "1px solid #1f2430",
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    gap: 6
+  }}
+>
+  <div
+    style={{
+      fontSize: 12,
+      fontWeight: 600,
+      color: teamMode === "ally" ? "#4cc9ff" : "#ff6b6b"
+    }}
+  >
+    {teamMode === "ally" ? "Ally" : "Enemy"}
+  </div>
+
+  <div
+    onClick={() =>
+      setTeamMode((m) => (m === "ally" ? "enemy" : "ally"))
+    }
+    style={{
+      width: 56,
+      height: 28,
+      borderRadius: 20,
+      background: teamMode === "ally" ? "#1e90ff" : "#ff4757",
+      position: "relative",
+      cursor: "pointer",
+      transition: "background 180ms ease"
+    }}
+  >
+    <div
+      style={{
+        position: "absolute",
+        top: 3,
+        left: teamMode === "ally" ? 28 : 3,
+        width: 22,
+        height: 22,
+        borderRadius: "50%",
+        background: teamMode === "ally" ? "#7dd3ff" : "#ffb3b3",
+        transition: "left 180ms ease, background 180ms ease"
+      }}
+    />
+  </div>
+
+  <div
+    style={{
+      marginTop: 6,
+      color: "#fff",
+      fontWeight: 600,
+      fontSize: 13
+    }}
+  >
+    Characters
+  </div>
+</div>
+
+        <div
+          className="char-scroll"
+          style={{
+            flex: 1,
+            overflowY: "auto",
+            padding: 12,
+            display: "grid",
+            gridTemplateColumns: "repeat(2, 1fr)",
+            gap: 12,
+            alignContent: "start"
+          }}
+        >
+          {CHARACTERS.map((c) => (
+            <div
+              key={c}
+              style={{
+                width: "100%",
+                aspectRatio: "1 / 1",
+                borderRadius: 12,
+                background: "#1f2430",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                cursor: "pointer"
+              }}
+            >
+              <img
+                src={`/characters/${c}.png`}
+                alt={c}
+                draggable={false}
+                style={{
+                  width: "72%",
+                  height: "72%",
+                  objectFit: "contain",
+                  pointerEvents: "none"
+                }}
+              />
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }
+
+
+
+
 
 
 
