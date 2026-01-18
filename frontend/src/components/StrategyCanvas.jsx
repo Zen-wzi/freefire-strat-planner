@@ -36,20 +36,24 @@ export default function StrategyCanvas() {
   const [teamMode, setTeamMode] = useState("ally"); // "ally" | "enemy"
 
   useEffect(() => {
-    setIsMobile(window.innerWidth < 768);
-  }, []);
+  const detect = () => {
+    const coarse = window.matchMedia("(pointer: coarse)").matches;
+    const small = window.innerWidth < 900;
+    setIsMobile(coarse || small);
+  };
+
+  detect();
+  window.addEventListener("resize", detect);
+  return () => window.removeEventListener("resize", detect);
+}, []);
+
 
   const [phases, setPhases] = useState([
     {
       id: 1,
       name: "Phase 1 - Drop",
       map: "/maps/bermuda.jpg",
-      players: [
-        { id: 1, name: "IGL", x: 120, y: 120, color: "#ff4757", locked: false },
-        { id: 2, name: "P2", x: 260, y: 140, color: "#1e90ff", locked: false },
-        { id: 3, name: "P3", x: 180, y: 260, color: "#2ed573", locked: false },
-        { id: 4, name: "P4", x: 320, y: 260, color: "#ffa502", locked: false }
-      ],
+      players: [],
       strokes: [],
       rotations: [],
       undoStack: [],
@@ -155,6 +159,43 @@ export default function StrategyCanvas() {
       y: ((e.clientY - rect.top) / rect.height) * 600
     };
   };
+
+  const spawnCharacter = (charName) => {
+  pushHistory();
+
+  setPhases((prev) => {
+    const updated = deepCopy(prev);
+    const p = updated[currentPhaseIndex];
+
+    const prefix = teamMode === "ally" ? "P" : "E";
+    const used = p.players
+      .map((pl) => pl.name)
+      .filter((n) => n && n.startsWith(prefix))
+      .map((n) => parseInt(n.slice(1), 10))
+      .filter((n) => !isNaN(n));
+
+    const nextNum = used.length ? Math.max(...used) + 1 : 1;
+    const name = `${prefix}${nextNum}`;
+
+    const baseX = 500;
+    const baseY = 300;
+
+    const jitter = () => (Math.random() - 0.5) * 40;
+
+    p.players.push({
+      id: uid(),
+      name,
+      x: baseX + jitter(),
+      y: baseY + jitter(),
+      color: teamMode === "ally" ? "#1e90ff" : "#ff4757",
+      locked: false,
+      character: charName
+    });
+
+    return updated;
+  });
+};
+
 
   // Track cursor at CONTAINER level, but only render tactically inside STAGE
   const updateCursorCSS = (e) => {
@@ -602,7 +643,7 @@ export default function StrategyCanvas() {
       <div
         data-ui-panel
         style={{
-          width: 260,
+          width: isMobile ? 140 : 260,
           height: "100%",
           background: "rgba(18,18,18,0.95)",
           borderLeft: "1px solid #1f2430",
@@ -688,25 +729,26 @@ export default function StrategyCanvas() {
             overflowY: "auto",
             padding: 12,
             display: "grid",
-            gridTemplateColumns: "repeat(2, 1fr)",
+            gridTemplateColumns: isMobile ? "1fr" : "repeat(2, 1fr)",
             gap: 12,
             alignContent: "start"
           }}
         >
           {CHARACTERS.map((c) => (
-            <div
-              key={c}
-              style={{
-                width: "100%",
-                aspectRatio: "1 / 1",
-                borderRadius: 12,
-                background: "#1f2430",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                cursor: "pointer"
-              }}
-            >
+  <div
+    key={c}
+    onClick={() => spawnCharacter(c)}
+    style={{
+      width: "100%",
+      aspectRatio: "1 / 1",
+      borderRadius: 12,
+      background: "#1f2430",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      cursor: "pointer"
+    }}
+  >
               <img
                 src={`/characters/${c}.png`}
                 alt={c}

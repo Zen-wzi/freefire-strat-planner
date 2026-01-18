@@ -113,6 +113,10 @@ export default function PlayerLayer({
         const left = (p.x / 1000) * containerSize.width;
         const top = (p.y / 600) * containerSize.height;
 
+        const isEnemy = p.color === "#ff4757";
+        const ringColor = isEnemy ? "#b02a2a" : "#155fa0";
+        const bgColor = isEnemy ? "#ff6b6b" : "#4cc9ff";
+
         return (
           <div
             key={p.id}
@@ -136,54 +140,108 @@ export default function PlayerLayer({
               zIndex: 10
             }}
           >
-            <div
-              style={{
-                position: "relative",
-                width: SIZE,
-                height: SIZE,
-                borderRadius: "50%",
-                backgroundColor: p.color,
-                color: "#fff",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontSize: 12,
-                fontWeight: "bold",
-                cursor: p.locked ? "not-allowed" : "grab",
-                border:
-                  selectedPlayer?.id === p.id
-                    ? "3px solid yellow"
-                    : "2px solid #111",
-                userSelect: "none",
-                opacity: p.locked ? 0.7 : 1,
-                touchAction: "none" // 🚫 disables long-press / zoom interference
-              }}
-            >
-              {p.name}
-
-              {p.locked && (
-                <div
+            {p.character ? (
+              <div
+                style={{
+                  position: "relative",
+                  width: SIZE,
+                  height: SIZE,
+                  borderRadius: 8,
+                  background: bgColor,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  cursor: p.locked ? "not-allowed" : "grab",
+                  border:
+                    selectedPlayer?.id === p.id
+                      ? "3px solid yellow"
+                      : `2px solid ${ringColor}`,
+                  userSelect: "none",
+                  opacity: p.locked ? 0.7 : 1,
+                  touchAction: "none",
+                  boxShadow: `0 0 0 1px ${ringColor} inset`
+                }}
+              >
+                <img
+                  src={`/characters/${p.character}.png`}
+                  alt={p.character}
+                  draggable={false}
                   style={{
-                    position: "absolute",
-                    top: -6,
-                    right: -6,
-                    background: "#111",
-                    borderRadius: "50%",
-                    padding: "2px 4px",
-                    fontSize: 10,
-                    lineHeight: 1
+                    width: "80%",
+                    height: "80%",
+                    objectFit: "contain",
+                    pointerEvents: "none"
                   }}
-                >
-                  🔒
-                </div>
-              )}
-            </div>
+                />
+
+                {p.locked && (
+                  <div
+                    style={{
+                      position: "absolute",
+                      top: -6,
+                      right: -6,
+                      background: "#111",
+                      borderRadius: "50%",
+                      padding: "2px 4px",
+                      fontSize: 10,
+                      lineHeight: 1
+                    }}
+                  >
+                    🔒
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div
+                style={{
+                  position: "relative",
+                  width: SIZE,
+                  height: SIZE,
+                  borderRadius: "50%",
+                  backgroundColor: p.color,
+                  color: "#fff",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: 12,
+                  fontWeight: "bold",
+                  cursor: p.locked ? "not-allowed" : "grab",
+                  border:
+                    selectedPlayer?.id === p.id
+                      ? "3px solid yellow"
+                      : "2px solid #111",
+                  userSelect: "none",
+                  opacity: p.locked ? 0.7 : 1,
+                  touchAction: "none"
+                }}
+              >
+                {p.name}
+
+                {p.locked && (
+                  <div
+                    style={{
+                      position: "absolute",
+                      top: -6,
+                      right: -6,
+                      background: "#111",
+                      borderRadius: "50%",
+                      padding: "2px 4px",
+                      fontSize: 10,
+                      lineHeight: 1
+                    }}
+                  >
+                    🔒
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         );
       })}
     </div>
   );
 }
+
 
 
 
