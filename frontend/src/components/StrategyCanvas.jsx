@@ -47,17 +47,18 @@ export default function StrategyCanvas() {
 }, []);
 
 
-  const [phases, setPhases] = useState([
-    {
-      id: 1,
-      name: "Phase 1 - Drop",
-      map: "/maps/bermuda.jpg",
-      players: [],
-      strokes: [],
-      undoStack: [],
-      redoStack: []
-    }
-  ]);
+  const makeInitialPhases = () =>
+  Array.from({ length: 10 }, (_, i) => ({
+    id: i + 1,
+    name: `Phase ${i + 1}`,
+    map: "/maps/bermuda.jpg",
+    players: [],
+    strokes: [],
+    undoStack: [],
+    redoStack: []
+  }));
+
+const [phases, setPhases] = useState(makeInitialPhases);
 
   const [currentPhaseIndex, setCurrentPhaseIndex] = useState(0);
   const currentPhase = phases[currentPhaseIndex];
@@ -480,90 +481,114 @@ return (
     style={{
       position: "relative",
       width: "100vw",
-      height: "100dvh",
+      height: "var(--app-height, 100dvh)",
       display: "flex",
       flexDirection: "row",
       background: "#0f1115",
       overflow: "hidden"
     }}
   >
-    {/* LEFT PANEL */}
-    <div
-      data-ui-panel
-      style={{
-        width: 280,
-        height: "100%",
-        background: "rgba(18,18,18,0.95)",
-        borderRight: "1px solid #1f2430",
-        display: "flex",
-        flexDirection: "column",
-        zIndex: 10
-      }}
-    >
+          {/* LEFT PANEL */}
+      <div
+  data-ui-panel
+  style={{
+    width: isMobile ? 200 : 280,
+    height: "100%",
+    background: "rgba(18,18,18,0.95)",
+    borderRight: isMobile ? "1px solid #2a2f3a" : "1px solid #1f2430",
+boxShadow: isMobile
+  ? "2px 0 12px rgba(0,0,0,0.55)"
+  : "none",
+    display: "flex",
+    flexDirection: "column",
+    zIndex: 10,
+    overflow: "hidden"
+  }}
+>
+        <div
+  style={{
+    flex: 1,
+    overflowY: "auto",
+    overflowX: "hidden",
+    overscrollBehavior: "contain",
+    WebkitOverflowScrolling: "touch",
+    paddingRight: 2,
+    scrollbarWidth: "none",          // Firefox
+    msOverflowStyle: "none"          // IE / Edge legacy
+  }}
+>
+  <style>{`
+    [data-ui-panel] > div::-webkit-scrollbar {
+      width: 0px;
+      height: 0px;
+      display: none;
+    }
+  `}</style>
+
       <Toolbar
-        setTool={setTool}
-        setColor={setPenColor}
-        clearCanvas={clearCanvas}
-        save={handleSave}
-        load={handleLoad}
-        undo={undo}
-        redo={redo}
-        currentPhaseMap={currentPhase.map}
-        phaseIndex={currentPhaseIndex}
-        totalPhases={phases.length}
-        phaseName={currentPhase.name}
-        renamePhase={(name) => {
-          setPhases((prev) => {
-            const updated = deepCopy(prev);
-            updated[currentPhaseIndex].name = name;
-            return updated;
-          });
-        }}
-        onMapChange={(map) => {
-          pushHistory();
-          setPhases((prev) => {
-            const updated = deepCopy(prev);
-            updated[currentPhaseIndex].map = map;
-            return updated;
-          });
-        }}
-        addPhase={() => {
-          setPhases((p) => [
-            ...p,
-            {
-              id: p.length + 1,
-              name: `Phase ${p.length + 1}`,
-              map: currentPhase.map,
-              players: deepCopy(currentPhase.players),
-              strokes: [],
-              rotations: [],
-              undoStack: [],
-              redoStack: []
-            }
-          ]);
-          setCurrentPhaseIndex(phases.length);
-        }}
-        prevPhase={() => setCurrentPhaseIndex((i) => Math.max(0, i - 1))}
-        nextPhase={() =>
-          setCurrentPhaseIndex((i) =>
-            Math.min(phases.length - 1, i + 1)
-          )
-        }
-      />
-    </div>
+  setTool={setTool}
+  setColor={setPenColor}
+  clearCanvas={clearCanvas}
+  save={handleSave}
+  load={handleLoad}
+  undo={undo}
+  redo={redo}
+  currentPhaseMap={currentPhase.map}
+  phaseIndex={currentPhaseIndex}
+  totalPhases={phases.length}
+  phaseName={currentPhase.name}
+  renamePhase={(name) => {
+    setPhases((prev) => {
+      const updated = deepCopy(prev);
+      updated[currentPhaseIndex].name = name;
+      return updated;
+    });
+  }}
+  onMapChange={(map) => {
+    pushHistory();
+    setPhases((prev) => {
+      const updated = deepCopy(prev);
+      updated[currentPhaseIndex].map = map;
+      return updated;
+    });
+  }}
+  prevPhase={() => setCurrentPhaseIndex((i) => Math.max(0, i - 1))}
+  nextPhase={() =>
+    setCurrentPhaseIndex((i) =>
+      Math.min(phases.length - 1, i + 1)
+    )
+  }
+        />
+        </div>
+      </div>
 
     {/* CENTER MAP ZONE */}
+<div
+  ref={stageRef}
+  style={{
+    position: "relative",
+    flex: 1,
+    height: "100%",
+    background:
+      "radial-gradient(1200px 600px at center, #1a1d24 0%, #0f1115 60%)"
+  }}
+>
+  {isMobile && (
     <div
-      ref={stageRef}
       style={{
-        position: "relative",
-        flex: 1,
+        position: "absolute",
+        top: 0,
+        right: -88,
+        width: 88,
         height: "100%",
         background:
-          "radial-gradient(1200px 600px at center, #1a1d24 0%, #0f1115 60%)"
+          "radial-gradient(1200px 600px at center, #1a1d24 0%, #0f1115 60%)",
+        pointerEvents: "none",
+        zIndex: -1,
       }}
-    >
-      {/* MAP CONTROL STRIP (VALOPLANT-STYLE) */}
+    />
+  )}
+     {/* MAP CONTROL STRIP (VALOPLANT-STYLE) */}
       <div
         style={{
           position: "absolute",
@@ -663,13 +688,14 @@ return (
     <div
       data-ui-panel
       style={{
-        width: isMobile ? 112 : 200,
+        width: isMobile ? 88 : 200,
         height: "100%",
         background: "rgba(18,18,18,0.95)",
         borderLeft: "1px solid #1f2430",
         display: "flex",
         flexDirection: "column",
-        overflow: "hidden"
+        overflow: "hidden",
+        overflowX: "hidden"
       }}
     >
       <style>{`
@@ -733,45 +759,47 @@ return (
       </div>
 
       <div
-        className="char-scroll"
-        style={{
-          flex: 1,
-          overflowY: "auto",
-          padding: 8,
-          display: "grid",
-          gridTemplateColumns: isMobile ? "1fr" : "repeat(2, 1fr)",
-          gap: 8,
-          alignContent: "start"
-        }}
-      >
+  className="char-scroll"
+  style={{
+    flex: 1,
+    overflowY: "auto",
+    overflowX: "hidden",
+    padding: isMobile ? 4 : 8,
+    display: "grid",
+    gridTemplateColumns: isMobile ? "1fr" : "repeat(2, 1fr)",
+    gap: isMobile ? 6 : 8,
+    alignContent: "start"
+  }}
+>
         {CHARACTERS.map((c) => (
-          <div
-            key={c}
-            onClick={() => spawnCharacter(c)}
-            style={{
-              width: "100%",
-              aspectRatio: "1 / 1",
-              borderRadius: 8,
-              background: "#1f2430",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              cursor: "pointer"
-            }}
-          >
-            <img
-              src={`/characters/${c}.png`}
-              alt={c}
-              draggable={false}
-              style={{
-                width: "88%",
-                height: "88%",
-                objectFit: "contain",
-                pointerEvents: "none"
-              }}
-            />
-          </div>
-        ))}
+  <div
+    key={c}
+    onClick={() => spawnCharacter(c)}
+    style={{
+      width: "100%",
+      aspectRatio: "1 / 1",
+      borderRadius: isMobile ? 6 : 8,
+      background: "#1f2430",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      cursor: "pointer",
+      padding: isMobile ? 2 : 0
+    }}
+  >
+    <img
+      src={`/characters/${c}.png`}
+      alt={c}
+      draggable={false}
+      style={{
+        width: isMobile ? "100%" : "88%",
+        height: isMobile ? "100%" : "88%",
+        objectFit: "contain",
+        pointerEvents: "none"
+      }}
+    />
+  </div>
+))}
       </div>
     </div>
   </div>

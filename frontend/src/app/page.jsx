@@ -5,12 +5,32 @@ import StrategyCanvas from "../components/StrategyCanvas";
 
 export default function Home() {
   useEffect(() => {
-    // 🔒 LOCK SCROLL (PC + MOBILE)
-    document.documentElement.style.overflow = "hidden";
-    document.body.style.overflow = "hidden";
-    document.body.style.margin = "0";
-    document.body.style.padding = "0";
-  }, []);
+  const setAppHeight = () => {
+    const h = window.visualViewport
+      ? window.visualViewport.height
+      : window.innerHeight;
+
+    document.documentElement.style.setProperty(
+      "--app-height",
+      `${h}px`
+    );
+  };
+
+  setAppHeight();
+  window.addEventListener("resize", setAppHeight);
+  window.visualViewport?.addEventListener("resize", setAppHeight);
+
+  // 🔒 LOCK SCROLL
+  document.documentElement.style.overflow = "hidden";
+  document.body.style.overflow = "hidden";
+  document.body.style.margin = "0";
+  document.body.style.padding = "0";
+
+  return () => {
+    window.removeEventListener("resize", setAppHeight);
+    window.visualViewport?.removeEventListener("resize", setAppHeight);
+  };
+}, []);
 
   return (
     <div

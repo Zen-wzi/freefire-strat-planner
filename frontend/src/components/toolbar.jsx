@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import PresentationControls from "./PresentationControls";
 
 const MAPS = [
@@ -22,7 +22,6 @@ export default function Toolbar({
   save,
   load,
   onMapChange,
-  addPhase,
   prevPhase,
   nextPhase,
   undo,
@@ -37,13 +36,30 @@ export default function Toolbar({
   const [name, setName] = useState(phaseName);
   const [activeTool, setActiveTool] = useState("pen");
   const [mapOpen, setMapOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const update = () => setIsMobile(window.innerWidth < 768);
+    update();
+    window.addEventListener("resize", update);
+    return () => window.removeEventListener("resize", update);
+  }, []);
+
+  const panelPadding = isMobile ? 6 : 12;
+  const panelGap = isMobile ? 8 : 12;
+  const rowGap = isMobile ? 6 : 8;
+  const mapHeight = isMobile ? 52 : 64;
+  const mapItemHeight = isMobile ? 46 : 56;
+  const headerPadding = isMobile ? "10px 10px" : "14px 12px";
+  const headerRadius = isMobile ? 10 : 12;
+  const headerFont = isMobile ? 14 : 16;
 
   const currentMap =
     MAPS.find((m) => m.path === currentPhaseMap) || MAPS[0];
 
   const rowStyle = {
     display: "flex",
-    gap: 8
+    gap: rowGap
   };
 
   const pressHandlers = {
@@ -70,8 +86,8 @@ export default function Toolbar({
         height: "100%",
         display: "flex",
         flexDirection: "column",
-        padding: 12,
-        gap: 12,
+        padding: panelPadding,
+        gap: panelGap,
         fontFamily: "Inter, system-ui, sans-serif",
         color: "#fff"
       }}
@@ -79,95 +95,29 @@ export default function Toolbar({
       {/* STRATEGY HEADER SHELL */}
       <div
         style={{
-          padding: "14px 12px",
-          borderRadius: 12,
+          padding: headerPadding,
+          borderRadius: headerRadius,
           background:
             "linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02))",
           boxShadow: "inset 0 1px 0 rgba(255,255,255,0.08)",
           fontWeight: 700,
-          fontSize: 16,
+          fontSize: headerFont,
           letterSpacing: 0.3
         }}
       >
         Strategy
       </div>
 
-      {/* PHASE HEADER */}
-      <div
-        style={{
-          padding: "10px 12px",
-          borderRadius: 12,
-          background:
-            "linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02))",
-          boxShadow: "inset 0 1px 0 rgba(255,255,255,0.08)",
-          fontWeight: 600,
-          fontSize: 13
-        }}
-      >
-        <div style={{ opacity: 0.75, fontSize: 12 }}>
-          Phase {phaseIndex + 1} / {totalPhases}
-        </div>
-
-        <div style={{ display: "flex", alignItems: "center", marginTop: 6 }}>
-          {editing ? (
-            <input
-              value={name}
-              autoFocus
-              onChange={(e) => setName(e.target.value)}
-              onBlur={() => {
-                renamePhase(name);
-                setEditing(false);
-              }}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  renamePhase(name);
-                  setEditing(false);
-                }
-              }}
-              style={{
-                flex: 1,
-                background: "#2f3542",
-                color: "#fff",
-                border: "none",
-                borderRadius: 6,
-                padding: "8px 10px",
-                fontSize: 16,
-                WebkitTextSizeAdjust: "100%"
-              }}
-            />
-          ) : (
-            <>
-              <span style={{ flex: 1 }}>{phaseName}</span>
-              <button
-                {...pressHandlers}
-                onClick={() => {
-                  setName(phaseName);
-                  setEditing(true);
-                }}
-                style={{
-                  ...iconBtn,
-                  transition: "transform 120ms ease, filter 120ms ease"
-                }}
-              >
-                ✏️
-              </button>
-            </>
-          )}
-        </div>
-      </div>
-
-      <Divider />
-
       {/* MAP SELECTOR */}
-      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: rowGap }}>
         <div
           {...pressHandlers}
           onClick={() => setMapOpen((o) => !o)}
           style={{
             position: "relative",
             width: "100%",
-            height: 64,
-            borderRadius: 12,
+            height: mapHeight,
+            borderRadius: headerRadius,
             overflow: "hidden",
             cursor: "pointer",
             border: "1px solid #2f3542",
@@ -186,19 +136,18 @@ export default function Toolbar({
             }}
           />
           <div
-  style={{
-    position: "absolute",
-    bottom: 10,
-    left: 12,
-    fontSize: 15,
-    fontWeight: 700,
-    letterSpacing: 0.6,
-    textTransform: "uppercase"
-  }}
->
-  {currentMap.name}
-</div>
-
+            style={{
+              position: "absolute",
+              bottom: 10,
+              left: 12,
+              fontSize: isMobile ? 13 : 15,
+              fontWeight: 700,
+              letterSpacing: 0.6,
+              textTransform: "uppercase"
+            }}
+          >
+            {currentMap.name}
+          </div>
         </div>
 
         {mapOpen && (
@@ -206,7 +155,7 @@ export default function Toolbar({
             style={{
               display: "grid",
               gridTemplateColumns: "1fr",
-              gap: 8
+              gap: rowGap
             }}
           >
             {MAPS.filter((m) => m.path !== currentPhaseMap).map((m) => (
@@ -220,14 +169,11 @@ export default function Toolbar({
                 style={{
                   position: "relative",
                   width: "100%",
-                  height: 56,
+                  height: mapItemHeight,
                   borderRadius: 10,
                   overflow: "hidden",
                   cursor: "pointer",
-                  border:
-                    m.path === currentPhaseMap
-                      ? "1px solid #4cc9ff"
-                      : "1px solid #2f3542",
+                  border: "1px solid #2f3542",
                   backgroundImage: `url(${m.preview})`,
                   backgroundSize: "cover",
                   backgroundPosition: "center"
@@ -244,10 +190,12 @@ export default function Toolbar({
                 <div
                   style={{
                     position: "absolute",
-                    bottom: 6,
-                    left: 8,
-                    fontSize: 12,
-                    fontWeight: 600
+                    bottom: 8,
+                    left: 10,
+                    fontSize: isMobile ? 11 : 12,
+                    fontWeight: 600,
+                    letterSpacing: 0.4,
+                    textTransform: "uppercase"
                   }}
                 >
                   {m.name}
@@ -257,6 +205,135 @@ export default function Toolbar({
           </div>
         )}
       </div>
+      <Divider />
+
+      <Divider />
+
+      {/* PHASE NAV (VALOPLANT STYLE) */}
+      <div style={{ display: "flex", flexDirection: "column", gap: rowGap }}>
+        <div
+          style={{
+            fontSize: 12,
+            opacity: 0.7,
+            textAlign: "left",
+            paddingLeft: 4
+          }}
+        >
+          Phase
+        </div>
+
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            padding: "6px 4px"
+          }}
+        >
+          <button
+            {...pressHandlers}
+            onClick={prevPhase}
+            style={baseBtnSmall}
+          >
+            ◀
+          </button>
+
+          <div
+            style={{
+              fontSize: 16,
+              fontWeight: 700,
+              letterSpacing: 1
+            }}
+          >
+            {phaseIndex + 1}
+          </div>
+
+          <button
+            {...pressHandlers}
+            onClick={nextPhase}
+            style={baseBtnSmall}
+          >
+            ▶
+          </button>
+        </div>
+
+        <div
+          style={{
+            padding: "10px 12px",
+            borderRadius: 10,
+            background: "#2a2f3a",
+            border: "1px solid #2f3542",
+            fontSize: 13,
+            fontWeight: 600,
+            textAlign: "center"
+          }}
+        >
+        </div>
+      </div>
+
+      <Divider />
+
+      {/* DELETE */}
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          gap: isMobile ? 8 : 10
+        }}
+      >
+        <div
+          style={{
+            fontSize: 12,
+            color: "#9aa0aa",
+            fontWeight: 600,
+            letterSpacing: 0.3
+          }}
+        >
+          Delete
+        </div>
+
+        <button
+          {...pressHandlers}
+          style={{
+            ...baseBtn,
+            height: isMobile ? 32 : 36,
+            background: "#1f6f8b",
+            border: "1px solid #2a8fb0",
+            color: "#fff",
+            fontWeight: 600
+          }}
+        >
+          Everything
+        </button>
+
+        <button
+          {...pressHandlers}
+          style={{
+            ...baseBtn,
+            height: isMobile ? 28 : 32,
+            background: "#232833",
+            color: "#cfd6e4"
+          }}
+        >
+          Phase Step {phaseIndex + 1}
+        </button>
+
+        <div
+          style={{
+            display: "flex",
+            gap: 6,
+            marginTop: 4
+          }}
+        >
+          <button {...pressHandlers} style={{ ...baseBtn, flex: 1 }}>👤</button>
+          <button {...pressHandlers} style={{ ...baseBtn, flex: 1 }}>💥</button>
+          <button {...pressHandlers} style={{ ...baseBtn, flex: 1 }}>✏️</button>
+          <button {...pressHandlers} style={{ ...baseBtn, flex: 1 }}>📝</button>
+          <button {...pressHandlers} style={{ ...baseBtn, flex: 1 }}>🖼</button>
+        </div>
+      </div>
+
+      <Divider />
 
       <Divider />
 
@@ -296,16 +373,16 @@ export default function Toolbar({
         </button>
 
         <input
-          type="color"
-          onChange={(e) => setColor(e.target.value)}
-          style={{
-            height: 32,
-            width: 36,
-            borderRadius: 8,
-            border: "none",
-            background: "none"
-          }}
-        />
+  type="color"
+  onChange={(e) => setColor(e.target.value)}
+  style={{
+    height: isMobile ? 26 : 32,
+    width: isMobile ? 30 : 36,
+    borderRadius: isMobile ? 6 : 8,
+    border: "none",
+    background: "none"
+  }}
+/>
 
         <button {...pressHandlers} style={baseBtn} onClick={clearCanvas}>
           🗑
@@ -346,21 +423,6 @@ export default function Toolbar({
         </button>
       </div>
 
-      <div style={{ height: 6 }} />
-
-      {/* PHASE NAV */}
-      <div style={rowStyle}>
-        <button {...pressHandlers} style={baseBtn} onClick={prevPhase}>
-          ◀
-        </button>
-        <button {...pressHandlers} style={baseBtn} onClick={addPhase}>
-          ＋
-        </button>
-        <button {...pressHandlers} style={baseBtn} onClick={nextPhase}>
-          ▶
-        </button>
-      </div>
-
       <Divider />
 
       <PresentationControls />
@@ -392,6 +454,19 @@ const baseBtn = {
   transition: "transform 120ms ease, filter 120ms ease, box-shadow 160ms ease"
 };
 
+const baseBtnSmall = {
+  width: 32,
+  height: 24,
+  borderRadius: 6,
+  border: "1px solid #2f3542",
+  background: "#2f3542",
+  color: "#fff",
+  cursor: "pointer",
+  fontSize: 12,
+  boxShadow: "inset 0 1px 0 rgba(255,255,255,0.04)",
+  transition: "transform 120ms ease, filter 120ms ease, box-shadow 160ms ease"
+};
+
 const toolBtn = (active, accent) => ({
   ...baseBtn,
   background: active ? `${accent}22` : "#2f3542",
@@ -408,6 +483,8 @@ const iconBtn = {
   color: "#fff",
   cursor: "pointer"
 };
+
+
 
 
 
