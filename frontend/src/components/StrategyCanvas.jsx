@@ -1,7 +1,6 @@
 "use client";
 import { useRef, useState, useEffect } from "react";
 import PlayerLayer from "./PlayerLayer";
-import RotationLayer from "./RotationLayer";
 import Toolbar from "./Toolbar";
 
 const deepCopy = (v) => JSON.parse(JSON.stringify(v));
@@ -55,7 +54,6 @@ export default function StrategyCanvas() {
       map: "/maps/bermuda.jpg",
       players: [],
       strokes: [],
-      rotations: [],
       undoStack: [],
       redoStack: []
     }
@@ -86,7 +84,6 @@ export default function StrategyCanvas() {
           map: p.map,
           players: p.players,
           strokes: p.strokes,
-          rotations: p.rotations
         })
       );
       p.redoStack = [];
@@ -105,7 +102,6 @@ export default function StrategyCanvas() {
           map: p.map,
           players: p.players,
           strokes: p.strokes,
-          rotations: p.rotations
         })
       );
 
@@ -125,7 +121,6 @@ export default function StrategyCanvas() {
           map: p.map,
           players: p.players,
           strokes: p.strokes,
-          rotations: p.rotations
         })
       );
 
@@ -136,21 +131,8 @@ export default function StrategyCanvas() {
 
   // ---------------- PLAYER CLICK ----------------
   const handlePlayerClick = (player) => {
-    if (!selectedPlayer) {
-      setSelectedPlayer(player);
-    } else if (selectedPlayer.id !== player.id) {
-      pushHistory();
-      setPhases((prev) => {
-        const updated = deepCopy(prev);
-        updated[currentPhaseIndex].rotations.push({
-          fromId: selectedPlayer.id,
-          toId: player.id
-        });
-        return updated;
-      });
-      setSelectedPlayer(null);
-    }
-  };
+  setSelectedPlayer((p) => (p?.id === player.id ? null : player));
+};
 
   const getCanvasPos = (e) => {
     const rect = canvasRef.current.getBoundingClientRect();
@@ -490,283 +472,312 @@ export default function StrategyCanvas() {
   };
 
   // ---------------- RENDER (VALOPLANT FRAME) ----------------
-  return (
+  // ---------------- RENDER (VALOPLANT FRAME) ----------------
+return (
+  <div
+    ref={containerRef}
+    onPointerMove={updateCursorCSS}
+    style={{
+      position: "relative",
+      width: "100vw",
+      height: "100dvh",
+      display: "flex",
+      flexDirection: "row",
+      background: "#0f1115",
+      overflow: "hidden"
+    }}
+  >
+    {/* LEFT PANEL */}
     <div
-      ref={containerRef}
-      onPointerMove={updateCursorCSS}
+      data-ui-panel
       style={{
-        position: "relative",
-        width: "100vw",
-        height: "100dvh",
+        width: 280,
+        height: "100%",
+        background: "rgba(18,18,18,0.95)",
+        borderRight: "1px solid #1f2430",
         display: "flex",
-        flexDirection: "row",
-        background: "#0f1115",
-        overflow: "hidden"
+        flexDirection: "column",
+        zIndex: 10
       }}
     >
-      {/* LEFT PANEL */}
+      <Toolbar
+        setTool={setTool}
+        setColor={setPenColor}
+        clearCanvas={clearCanvas}
+        save={handleSave}
+        load={handleLoad}
+        undo={undo}
+        redo={redo}
+        currentPhaseMap={currentPhase.map}
+        phaseIndex={currentPhaseIndex}
+        totalPhases={phases.length}
+        phaseName={currentPhase.name}
+        renamePhase={(name) => {
+          setPhases((prev) => {
+            const updated = deepCopy(prev);
+            updated[currentPhaseIndex].name = name;
+            return updated;
+          });
+        }}
+        onMapChange={(map) => {
+          pushHistory();
+          setPhases((prev) => {
+            const updated = deepCopy(prev);
+            updated[currentPhaseIndex].map = map;
+            return updated;
+          });
+        }}
+        addPhase={() => {
+          setPhases((p) => [
+            ...p,
+            {
+              id: p.length + 1,
+              name: `Phase ${p.length + 1}`,
+              map: currentPhase.map,
+              players: deepCopy(currentPhase.players),
+              strokes: [],
+              rotations: [],
+              undoStack: [],
+              redoStack: []
+            }
+          ]);
+          setCurrentPhaseIndex(phases.length);
+        }}
+        prevPhase={() => setCurrentPhaseIndex((i) => Math.max(0, i - 1))}
+        nextPhase={() =>
+          setCurrentPhaseIndex((i) =>
+            Math.min(phases.length - 1, i + 1)
+          )
+        }
+      />
+    </div>
+
+    {/* CENTER MAP ZONE */}
+    <div
+      ref={stageRef}
+      style={{
+        position: "relative",
+        flex: 1,
+        height: "100%",
+        background:
+          "radial-gradient(1200px 600px at center, #1a1d24 0%, #0f1115 60%)"
+      }}
+    >
+      {/* MAP CONTROL STRIP (VALOPLANT-STYLE) */}
       <div
-        data-ui-panel
         style={{
-          width: 280,
-          height: "100%",
-          background: "rgba(18,18,18,0.95)",
-          borderRight: "1px solid #1f2430",
+          position: "absolute",
+          top: 12,
+          right: 12,
           display: "flex",
-          flexDirection: "column",
-          zIndex: 10
+          gap: 8,
+          zIndex: 20
         }}
       >
-        <Toolbar
-          setTool={setTool}
-          setColor={setPenColor}
-          clearCanvas={clearCanvas}
-          save={handleSave}
-          load={handleLoad}
-          undo={undo}
-          redo={redo}
-          currentPhaseMap={currentPhase.map}
-          phaseIndex={currentPhaseIndex}
-          totalPhases={phases.length}
-          phaseName={currentPhase.name}
-          renamePhase={(name) => {
-            setPhases((prev) => {
-              const updated = deepCopy(prev);
-              updated[currentPhaseIndex].name = name;
-              return updated;
-            });
+        {/* BIN */}
+        <div
+          id="map-bin"
+          style={{
+            width: 40,
+            height: 40,
+            borderRadius: 10,
+            background: "rgba(24,24,28,0.9)",
+            border: "1px solid #2a2f3a",
+            color: "#ff6b6b",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontSize: 18,
+            userSelect: "none",
+            pointerEvents: "none" // becomes active via PlayerLayer logic
           }}
-          onMapChange={(map) => {
-            pushHistory();
-            setPhases((prev) => {
-              const updated = deepCopy(prev);
-              updated[currentPhaseIndex].map = map;
-              return updated;
-            });
-          }}
-          addPhase={() => {
-            setPhases((p) => [
-              ...p,
-              {
-                id: p.length + 1,
-                name: `Phase ${p.length + 1}`,
-                map: currentPhase.map,
-                players: deepCopy(currentPhase.players),
-                strokes: [],
-                rotations: [],
-                undoStack: [],
-                redoStack: []
-              }
-            ]);
-            setCurrentPhaseIndex(phases.length);
-          }}
-          prevPhase={() => setCurrentPhaseIndex((i) => Math.max(0, i - 1))}
-          nextPhase={() =>
-            setCurrentPhaseIndex((i) =>
-              Math.min(phases.length - 1, i + 1)
-            )
-          }
-        />
+        >
+          🗑️
+        </div>
       </div>
 
-      {/* CENTER MAP ZONE */}
-      <div
-        ref={stageRef}
-        style={{
-          position: "relative",
-          flex: 1,
-          height: "100%",
-          background: "radial-gradient(1200px 600px at center, #1a1d24 0%, #0f1115 60%)"
-        }}
-      >
-        {currentPhase.map && (
-          <div
-            style={{
-              position: "absolute",
-              inset: 0,
-              backgroundImage: `url('${currentPhase.map}')`,
-              backgroundRepeat: "no-repeat",
-              backgroundPosition: "center",
-              backgroundSize: "contain",
-              pointerEvents: "none"
-            }}
-          />
-        )}
-
-        <canvas
-          ref={canvasRef}
-          width={1000}
-          height={600}
-          onPointerDown={handlePointerDown}
-          onPointerMove={handlePointerMove}
-          onPointerUp={handlePointerUp}
-          onPointerCancel={handlePointerUp}
+      {currentPhase.map && (
+        <div
           style={{
             position: "absolute",
             inset: 0,
-            width: "100%",
-            height: "100%",
-            touchAction: "none",
-            cursor:
-              !isMobile && (tool === "pen" || tool === "eraser" || tool === "arrow")
-                ? "none"
-                : "default"
+            backgroundImage: `url('${currentPhase.map}')`,
+            backgroundRepeat: "no-repeat",
+            backgroundPosition: "center",
+            backgroundSize: "contain",
+            pointerEvents: "none"
           }}
         />
+      )}
 
-        <RotationLayer
-          rotations={currentPhase.rotations}
-          players={currentPhase.players}
-          containerSize={containerSize}
-        />
-
-        <PlayerLayer
-          players={currentPhase.players}
-          setPlayers={(updater) => {
-            pushHistory();
-            setPhases((prev) => {
-              const updated = deepCopy(prev);
-              updated[currentPhaseIndex].players =
-                typeof updater === "function"
-                  ? updater(updated[currentPhaseIndex].players)
-                  : updater;
-              return updated;
-            });
-          }}
-          onPlayerClick={handlePlayerClick}
-          selectedPlayer={selectedPlayer}
-          containerSize={containerSize}
-        />
-      </div>
-
-            {/* RIGHT PANEL (CHARACTERS – 2-COLUMN VERTICAL LIST) */}
-      <div
-        data-ui-panel
+      <canvas
+        ref={canvasRef}
+        width={1000}
+        height={600}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+        onPointerCancel={handlePointerUp}
         style={{
-          width: isMobile ? 140 : 260,
+          position: "absolute",
+          inset: 0,
+          width: "100%",
           height: "100%",
-          background: "rgba(18,18,18,0.95)",
-          borderLeft: "1px solid #1f2430",
+          touchAction: "none",
+          cursor:
+            !isMobile && (tool === "pen" || tool === "eraser" || tool === "arrow")
+              ? "none"
+              : "default"
+        }}
+      />
+
+      <PlayerLayer
+  players={currentPhase.players}
+  setPlayers={(updater) => {
+    pushHistory();
+    setPhases((prev) => {
+      const updated = deepCopy(prev);
+      updated[currentPhaseIndex].players =
+        typeof updater === "function"
+          ? updater(updated[currentPhaseIndex].players)
+          : updater;
+      return updated;
+    });
+  }}
+  onDeletePlayer={(id) => {
+    pushHistory();
+    setPhases((prev) => {
+      const updated = deepCopy(prev);
+      updated[currentPhaseIndex].players =
+        updated[currentPhaseIndex].players.filter((p) => p.id !== id);
+      return updated;
+    });
+  }}
+  onPlayerClick={handlePlayerClick}
+  selectedPlayer={selectedPlayer}
+  containerSize={containerSize}
+/>
+    </div>
+
+    {/* RIGHT PANEL (CHARACTERS) */}
+    <div
+      data-ui-panel
+      style={{
+        width: isMobile ? 112 : 200,
+        height: "100%",
+        background: "rgba(18,18,18,0.95)",
+        borderLeft: "1px solid #1f2430",
+        display: "flex",
+        flexDirection: "column",
+        overflow: "hidden"
+      }}
+    >
+      <style>{`
+        .char-scroll {
+          scrollbar-width: none;
+          -ms-overflow-style: none;
+        }
+        .char-scroll::-webkit-scrollbar {
+          display: none;
+        }
+      `}</style>
+
+      {/* TOGGLE */}
+      <div
+        style={{
+          padding: "10px 8px",
+          borderBottom: "1px solid #1f2430",
           display: "flex",
           flexDirection: "column",
-          overflow: "hidden"
+          alignItems: "center",
+          gap: 6
         }}
       >
-        <style>{`
-          .char-scroll {
-            scrollbar-width: none;          /* Firefox */
-            -ms-overflow-style: none;       /* IE/Edge legacy */
-          }
-          .char-scroll::-webkit-scrollbar {
-            display: none;                  /* Chromium + Safari (Chrome, Edge, Brave, etc.) */
-          }
-        `}</style>
-
         <div
-  style={{
-    padding: "12px 12px 8px",
-    borderBottom: "1px solid #1f2430",
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-    gap: 6
-  }}
->
-  <div
-    style={{
-      fontSize: 12,
-      fontWeight: 600,
-      color: teamMode === "ally" ? "#4cc9ff" : "#ff6b6b"
-    }}
-  >
-    {teamMode === "ally" ? "Ally" : "Enemy"}
-  </div>
-
-  <div
-    onClick={() =>
-      setTeamMode((m) => (m === "ally" ? "enemy" : "ally"))
-    }
-    style={{
-      width: 56,
-      height: 28,
-      borderRadius: 20,
-      background: teamMode === "ally" ? "#1e90ff" : "#ff4757",
-      position: "relative",
-      cursor: "pointer",
-      transition: "background 180ms ease"
-    }}
-  >
-    <div
-      style={{
-        position: "absolute",
-        top: 3,
-        left: teamMode === "ally" ? 28 : 3,
-        width: 22,
-        height: 22,
-        borderRadius: "50%",
-        background: teamMode === "ally" ? "#7dd3ff" : "#ffb3b3",
-        transition: "left 180ms ease, background 180ms ease"
-      }}
-    />
-  </div>
-
-  <div
-    style={{
-      marginTop: 6,
-      color: "#fff",
-      fontWeight: 600,
-      fontSize: 13
-    }}
-  >
-    Characters
-  </div>
-</div>
-
-        <div
-          className="char-scroll"
           style={{
-            flex: 1,
-            overflowY: "auto",
-            padding: 12,
-            display: "grid",
-            gridTemplateColumns: isMobile ? "1fr" : "repeat(2, 1fr)",
-            gap: 12,
-            alignContent: "start"
+            fontSize: 12,
+            fontWeight: 600,
+            color: teamMode === "ally" ? "#4cc9ff" : "#ff6b6b"
           }}
         >
-          {CHARACTERS.map((c) => (
-  <div
-    key={c}
-    onClick={() => spawnCharacter(c)}
-    style={{
-      width: "100%",
-      aspectRatio: "1 / 1",
-      borderRadius: 12,
-      background: "#1f2430",
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      cursor: "pointer"
-    }}
-  >
-              <img
-                src={`/characters/${c}.png`}
-                alt={c}
-                draggable={false}
-                style={{
-                  width: "72%",
-                  height: "72%",
-                  objectFit: "contain",
-                  pointerEvents: "none"
-                }}
-              />
-            </div>
-          ))}
+          {teamMode === "ally" ? "Ally" : "Enemy"}
+        </div>
+
+        <div
+          onClick={() =>
+            setTeamMode((m) => (m === "ally" ? "enemy" : "ally"))
+          }
+          style={{
+            width: 56,
+            height: 28,
+            borderRadius: 20,
+            background: teamMode === "ally" ? "#1e90ff" : "#ff4757",
+            position: "relative",
+            cursor: "pointer",
+            transition: "background 180ms ease"
+          }}
+        >
+          <div
+            style={{
+              position: "absolute",
+              top: 3,
+              left: teamMode === "ally" ? 28 : 3,
+              width: 22,
+              height: 22,
+              borderRadius: "50%",
+              background: teamMode === "ally" ? "#7dd3ff" : "#ffb3b3",
+              transition: "left 180ms ease, background 180ms ease"
+            }}
+          />
         </div>
       </div>
+
+      <div
+        className="char-scroll"
+        style={{
+          flex: 1,
+          overflowY: "auto",
+          padding: 8,
+          display: "grid",
+          gridTemplateColumns: isMobile ? "1fr" : "repeat(2, 1fr)",
+          gap: 8,
+          alignContent: "start"
+        }}
+      >
+        {CHARACTERS.map((c) => (
+          <div
+            key={c}
+            onClick={() => spawnCharacter(c)}
+            style={{
+              width: "100%",
+              aspectRatio: "1 / 1",
+              borderRadius: 8,
+              background: "#1f2430",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              cursor: "pointer"
+            }}
+          >
+            <img
+              src={`/characters/${c}.png`}
+              alt={c}
+              draggable={false}
+              style={{
+                width: "88%",
+                height: "88%",
+                objectFit: "contain",
+                pointerEvents: "none"
+              }}
+            />
+          </div>
+        ))}
+      </div>
     </div>
-  );
+  </div>
+);
 }
+
 
 
 

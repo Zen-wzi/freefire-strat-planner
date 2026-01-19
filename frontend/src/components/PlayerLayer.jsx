@@ -1,31 +1,40 @@
 "use client";
-import { useRef, useEffect } from "react";
+import { useRef, useEffect, useState } from "react";
 
 const SIZE = 36;
 const HIT_SIZE = 56;
+const FADE_MS = 160;
 
 export default function PlayerLayer({
   players,
   setPlayers,
   selectedPlayer,
   onPlayerClick = () => {},
+  onDeletePlayer = () => {},
   containerSize
 }) {
   const safePlayers = Array.isArray(players) ? players : [];
   const draggingRef = useRef(null);
   const offsetRef = useRef({ x: 0, y: 0 });
   const containerRef = useRef(null);
+  const lastPointerRef = useRef({ x: 0, y: 0 });
+  const [deletingId, setDeletingId] = useState(null);
 
   // ---------------- DRAG MOVE (PC + MOBILE) ----------------
   useEffect(() => {
     const handlePointerMove = (e) => {
-      if (!draggingRef.current || !containerRef.current) return;
+      if (!containerRef.current) return;
 
-      const rect = containerRef.current.getBoundingClientRect();
       const clientX = e.clientX ?? e.touches?.[0]?.clientX;
       const clientY = e.clientY ?? e.touches?.[0]?.clientY;
 
       if (clientX == null || clientY == null) return;
+
+      lastPointerRef.current = { x: clientX, y: clientY };
+
+      if (!draggingRef.current) return;
+
+      const rect = containerRef.current.getBoundingClientRect();
 
       setPlayers((prev) =>
         prev.map((p) => {
@@ -50,7 +59,27 @@ export default function PlayerLayer({
     };
 
     const stopDrag = () => {
-      draggingRef.current = null;
+      if (draggingRef.current) {
+        const id = draggingRef.current;
+        draggingRef.current = null;
+
+        const bin = document.getElementById("map-bin");
+        if (bin) {
+          const r = bin.getBoundingClientRect();
+          const { x, y } = lastPointerRef.current;
+
+          const overBin =
+            x >= r.left && x <= r.right && y >= r.top && y <= r.bottom;
+
+          if (overBin) {
+            setDeletingId(id);
+            setTimeout(() => {
+              onDeletePlayer(id);
+              setDeletingId(null);
+            }, FADE_MS);
+          }
+        }
+      }
     };
 
     window.addEventListener("mousemove", handlePointerMove);
@@ -64,7 +93,7 @@ export default function PlayerLayer({
       window.removeEventListener("mouseup", stopDrag);
       window.removeEventListener("touchend", stopDrag);
     };
-  }, [setPlayers, containerSize]);
+  }, [setPlayers, containerSize, onDeletePlayer]);
 
   // ---------------- LOCK (PC ONLY – right click) ----------------
   const toggleLock = (id) => {
@@ -114,8 +143,8 @@ export default function PlayerLayer({
         const top = (p.y / 600) * containerSize.height;
 
         const isEnemy = p.color === "#ff4757";
-        const ringColor = isEnemy ? "#b02a2a" : "#155fa0";
         const bgColor = isEnemy ? "#ff6b6b" : "#4cc9ff";
+        const fading = deletingId === p.id;
 
         return (
           <div
@@ -146,20 +175,20 @@ export default function PlayerLayer({
                   position: "relative",
                   width: SIZE,
                   height: SIZE,
-                  borderRadius: 8,
+                  borderRadius: 6,
                   background: bgColor,
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
                   cursor: p.locked ? "not-allowed" : "grab",
-                  border:
-                    selectedPlayer?.id === p.id
-                      ? "3px solid yellow"
-                      : `2px solid ${ringColor}`,
                   userSelect: "none",
-                  opacity: p.locked ? 0.7 : 1,
+                  opacity: fading ? 0 : p.locked ? 0.7 : 1,
+                  transition: `opacity ${FADE_MS}ms ease`,
                   touchAction: "none",
-                  boxShadow: `0 0 0 1px ${ringColor} inset`
+                  outline:
+                    selectedPlayer?.id === p.id
+                      ? "2px solid yellow"
+                      : "none"
                 }}
               >
                 <img
@@ -167,8 +196,8 @@ export default function PlayerLayer({
                   alt={p.character}
                   draggable={false}
                   style={{
-                    width: "80%",
-                    height: "80%",
+                    width: "100%",
+                    height: "100%",
                     objectFit: "contain",
                     pointerEvents: "none"
                   }}
@@ -211,7 +240,8 @@ export default function PlayerLayer({
                       ? "3px solid yellow"
                       : "2px solid #111",
                   userSelect: "none",
-                  opacity: p.locked ? 0.7 : 1,
+                  opacity: fading ? 0 : p.locked ? 0.7 : 1,
+                  transition: `opacity ${FADE_MS}ms ease`,
                   touchAction: "none"
                 }}
               >
@@ -241,6 +271,8 @@ export default function PlayerLayer({
     </div>
   );
 }
+
+
 
 
 
