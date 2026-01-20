@@ -492,7 +492,7 @@ return (
       <div
   data-ui-panel
   style={{
-    width: isMobile ? 200 : 280,
+    width: isMobile ? 200 : 320,
     height: "100%",
     background: "rgba(18,18,18,0.95)",
     borderRight: isMobile ? "1px solid #2a2f3a" : "1px solid #1f2430",
@@ -512,9 +512,10 @@ boxShadow: isMobile
     overflowX: "hidden",
     overscrollBehavior: "contain",
     WebkitOverflowScrolling: "touch",
-    paddingRight: 2,
-    scrollbarWidth: "none",          // Firefox
-    msOverflowStyle: "none"          // IE / Edge legacy
+    paddingRight: isMobile ? 10 : 4,
+    paddingLeft: isMobile ? 2 : 0,
+    scrollbarWidth: "none",
+    msOverflowStyle: "none"
   }}
 >
   <style>{`
@@ -526,6 +527,7 @@ boxShadow: isMobile
   `}</style>
 
       <Toolbar
+  isMobile={isMobile}
   setTool={setTool}
   setColor={setPenColor}
   clearCanvas={clearCanvas}
@@ -558,7 +560,7 @@ boxShadow: isMobile
       Math.min(phases.length - 1, i + 1)
     )
   }
-        />
+/>
         </div>
       </div>
 
@@ -566,12 +568,13 @@ boxShadow: isMobile
 <div
   ref={stageRef}
   style={{
-    position: "relative",
-    flex: 1,
-    height: "100%",
-    background:
-      "radial-gradient(1200px 600px at center, #1a1d24 0%, #0f1115 60%)"
-  }}
+  position: "relative",
+  flex: 1,
+  height: "100%",
+  marginLeft: isMobile ? 0 : 10,   // ← the visual gap
+  background:
+    "radial-gradient(1200px 600px at center, #1a1d24 0%, #0f1115 60%)"
+}}
 >
   {isMobile && (
     <div
@@ -688,7 +691,7 @@ boxShadow: isMobile
     <div
       data-ui-panel
       style={{
-        width: isMobile ? 88 : 200,
+        width: isMobile ? 80 : 200,
         height: "100%",
         background: "rgba(18,18,18,0.95)",
         borderLeft: "1px solid #1f2430",
@@ -716,7 +719,7 @@ boxShadow: isMobile
           display: "flex",
           flexDirection: "column",
           alignItems: "center",
-          gap: 6
+          gap: 4
         }}
       >
         <div
@@ -764,10 +767,10 @@ boxShadow: isMobile
     flex: 1,
     overflowY: "auto",
     overflowX: "hidden",
-    padding: isMobile ? 4 : 8,
+    padding: isMobile ? 8 : 8,
     display: "grid",
     gridTemplateColumns: isMobile ? "1fr" : "repeat(2, 1fr)",
-    gap: isMobile ? 6 : 8,
+    gap: isMobile ? 4 : 8,
     alignContent: "start"
   }}
 >
@@ -784,7 +787,7 @@ boxShadow: isMobile
       alignItems: "center",
       justifyContent: "center",
       cursor: "pointer",
-      padding: isMobile ? 2 : 0
+      padding: isMobile ? 0 : 0
     }}
   >
     <img

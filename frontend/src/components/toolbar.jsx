@@ -16,6 +16,7 @@ const MAPS = [
 ];
 
 export default function Toolbar({
+  isMobile,
   setTool,
   setColor,
   clearCanvas,
@@ -36,23 +37,15 @@ export default function Toolbar({
   const [name, setName] = useState(phaseName);
   const [activeTool, setActiveTool] = useState("pen");
   const [mapOpen, setMapOpen] = useState(false);
-  const [isMobile, setIsMobile] = useState(false);
-
-  useEffect(() => {
-    const update = () => setIsMobile(window.innerWidth < 768);
-    update();
-    window.addEventListener("resize", update);
-    return () => window.removeEventListener("resize", update);
-  }, []);
 
   const panelPadding = isMobile ? 6 : 12;
-  const panelGap = isMobile ? 8 : 12;
+  const panelGap = isMobile ? 6 : 12;
   const rowGap = isMobile ? 6 : 8;
-  const mapHeight = isMobile ? 52 : 64;
-  const mapItemHeight = isMobile ? 46 : 56;
-  const headerPadding = isMobile ? "10px 10px" : "14px 12px";
-  const headerRadius = isMobile ? 10 : 12;
-  const headerFont = isMobile ? 14 : 16;
+  const mapHeight = isMobile ? 48 : 64;
+  const mapItemHeight = isMobile ? 40 : 56;
+  const headerPadding = isMobile ? "8px 8px" : "14px 12px";
+  const headerRadius = isMobile ? 9 : 12;
+  const headerFont = isMobile ? 13 : 16;
 
   const currentMap =
     MAPS.find((m) => m.path === currentPhaseMap) || MAPS[0];
@@ -138,9 +131,9 @@ export default function Toolbar({
           <div
             style={{
               position: "absolute",
-              bottom: 10,
-              left: 12,
-              fontSize: isMobile ? 13 : 15,
+              bottom: isMobile ? 8 : 10,
+              left: isMobile ? 10 : 12,
+              fontSize: isMobile ? 12 : 15,
               fontWeight: 700,
               letterSpacing: 0.6,
               textTransform: "uppercase"
@@ -170,7 +163,7 @@ export default function Toolbar({
                   position: "relative",
                   width: "100%",
                   height: mapItemHeight,
-                  borderRadius: 10,
+                  borderRadius: 9,
                   overflow: "hidden",
                   cursor: "pointer",
                   border: "1px solid #2f3542",
@@ -190,9 +183,9 @@ export default function Toolbar({
                 <div
                   style={{
                     position: "absolute",
-                    bottom: 8,
-                    left: 10,
-                    fontSize: isMobile ? 11 : 12,
+                    bottom: isMobile ? 6 : 8,
+                    left: isMobile ? 8 : 10,
+                    fontSize: isMobile ? 10 : 12,
                     fontWeight: 600,
                     letterSpacing: 0.4,
                     textTransform: "uppercase"
@@ -210,10 +203,10 @@ export default function Toolbar({
       <Divider />
 
       {/* PHASE NAV (VALOPLANT STYLE) */}
-      <div style={{ display: "flex", flexDirection: "column", gap: rowGap }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: isMobile ? 5 : 8 }}>
         <div
           style={{
-            fontSize: 12,
+            fontSize: isMobile ? 11 : 12,
             opacity: 0.7,
             textAlign: "left",
             paddingLeft: 4
@@ -227,7 +220,7 @@ export default function Toolbar({
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
-            padding: "6px 4px"
+            padding: isMobile ? "4px 2px" : "6px 4px"
           }}
         >
           <button
@@ -240,7 +233,7 @@ export default function Toolbar({
 
           <div
             style={{
-              fontSize: 16,
+              fontSize: isMobile ? 14 : 16,
               fontWeight: 700,
               letterSpacing: 1
             }}
@@ -259,11 +252,11 @@ export default function Toolbar({
 
         <div
           style={{
-            padding: "10px 12px",
+            padding: isMobile ? "8px 8px" : "10px 12px",
             borderRadius: 10,
             background: "#2a2f3a",
             border: "1px solid #2f3542",
-            fontSize: 13,
+            fontSize: isMobile ? 12 : 13,
             fontWeight: 600,
             textAlign: "center"
           }}
@@ -278,12 +271,12 @@ export default function Toolbar({
         style={{
           display: "flex",
           flexDirection: "column",
-          gap: isMobile ? 8 : 10
+          gap: isMobile ? 6 : 10
         }}
       >
         <div
           style={{
-            fontSize: 12,
+            fontSize: isMobile ? 11 : 12,
             color: "#9aa0aa",
             fontWeight: 600,
             letterSpacing: 0.3
@@ -296,7 +289,7 @@ export default function Toolbar({
           {...pressHandlers}
           style={{
             ...baseBtn,
-            height: isMobile ? 32 : 36,
+            height: isMobile ? 28 : 36,
             background: "#1f6f8b",
             border: "1px solid #2a8fb0",
             color: "#fff",
@@ -310,7 +303,7 @@ export default function Toolbar({
           {...pressHandlers}
           style={{
             ...baseBtn,
-            height: isMobile ? 28 : 32,
+            height: isMobile ? 26 : 32,
             background: "#232833",
             color: "#cfd6e4"
           }}
@@ -321,8 +314,8 @@ export default function Toolbar({
         <div
           style={{
             display: "flex",
-            gap: 6,
-            marginTop: 4
+            gap: 5,
+            marginTop: 2
           }}
         >
           <button {...pressHandlers} style={{ ...baseBtn, flex: 1 }}>👤</button>
@@ -373,16 +366,16 @@ export default function Toolbar({
         </button>
 
         <input
-  type="color"
-  onChange={(e) => setColor(e.target.value)}
-  style={{
-    height: isMobile ? 26 : 32,
-    width: isMobile ? 30 : 36,
-    borderRadius: isMobile ? 6 : 8,
-    border: "none",
-    background: "none"
-  }}
-/>
+          type="color"
+          onChange={(e) => setColor(e.target.value)}
+          style={{
+            height: isMobile ? 24 : 32,
+            width: isMobile ? 28 : 36,
+            borderRadius: isMobile ? 6 : 8,
+            border: "none",
+            background: "none"
+          }}
+        />
 
         <button {...pressHandlers} style={baseBtn} onClick={clearCanvas}>
           🗑
@@ -402,7 +395,7 @@ export default function Toolbar({
         {activeTool === "eraser" && "Erase mode"}
       </div>
 
-      <div style={{ height: 6 }} />
+      <div style={{ height: 4 }} />
 
       {/* HISTORY */}
       <div style={rowStyle}>
@@ -483,6 +476,7 @@ const iconBtn = {
   color: "#fff",
   cursor: "pointer"
 };
+
 
 
 
