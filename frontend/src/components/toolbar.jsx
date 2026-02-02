@@ -18,7 +18,13 @@ const MAPS = [
 export default function Toolbar({
   isMobile,
   setTool,
+  clearAllPhases,
+  clearCurrentPhase,
+  clearPlayersInPhase,
+  clearStrokesInPhase,
   setColor,
+  setPenWidth,
+  setPenOpacity,
   clearCanvas,
   save,
   load,
@@ -33,13 +39,17 @@ export default function Toolbar({
   phaseName,
   renamePhase
 }) {
+  const desktop = !isMobile;
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(phaseName);
   const [activeTool, setActiveTool] = useState("pen");
+  const [penOpen, setPenOpen] = useState(false);
+  const [penTool, setPenTool] = useState("pen"); // pen | arrow | dashed | line | rect | path
+
   const [mapOpen, setMapOpen] = useState(false);
 
-  const panelPadding = isMobile ? 6 : 12;
-  const panelGap = isMobile ? 6 : 12;
+  const panelPadding = isMobile ? 6 : 14;
+  const panelGap = isMobile ? 6 : 14;
   const rowGap = isMobile ? 6 : 8;
   const mapHeight = isMobile ? 48 : 64;
   const mapItemHeight = isMobile ? 40 : 56;
@@ -80,6 +90,8 @@ export default function Toolbar({
         display: "flex",
         flexDirection: "column",
         padding: panelPadding,
+        paddingLeft: isMobile ? panelPadding : panelPadding + 6,
+        paddingRight: isMobile ? panelPadding : panelPadding + 6,
         gap: panelGap,
         fontFamily: "Inter, system-ui, sans-serif",
         color: "#fff"
@@ -88,7 +100,7 @@ export default function Toolbar({
       {/* STRATEGY HEADER SHELL */}
       <div
         style={{
-          padding: headerPadding,
+         padding: desktop ? "16px 14px" : headerPadding,
           borderRadius: headerRadius,
           background:
             "linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02))",
@@ -105,8 +117,10 @@ export default function Toolbar({
       <div style={{ display: "flex", flexDirection: "column", gap: rowGap }}>
         <div
           {...pressHandlers}
+          {...(!isMobile ? desktopHoverHandlers : {})}
           onClick={() => setMapOpen((o) => !o)}
           style={{
+            ...(!isMobile ? desktopHoverPop : {}),
             position: "relative",
             width: "100%",
             height: mapHeight,
@@ -203,7 +217,7 @@ export default function Toolbar({
       <Divider />
 
       {/* PHASE NAV (VALOPLANT STYLE) */}
-      <div style={{ display: "flex", flexDirection: "column", gap: isMobile ? 5 : 8 }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: isMobile ? 5 : 10 }}>
         <div
           style={{
             fontSize: isMobile ? 11 : 12,
@@ -225,8 +239,10 @@ export default function Toolbar({
         >
           <button
             {...pressHandlers}
+            {...(!isMobile ? desktopHoverHandlers : {})}
             onClick={prevPhase}
             style={baseBtnSmall}
+            {...(!isMobile ? desktopHoverPop : {})}
           >
             ◀
           </button>
@@ -243,8 +259,10 @@ export default function Toolbar({
 
           <button
             {...pressHandlers}
+            {...(!isMobile ? desktopHoverHandlers : {})}
             onClick={nextPhase}
             style={baseBtnSmall}
+            {...(!isMobile ? desktopHoverPop : {})}
           >
             ▶
           </button>
@@ -271,7 +289,7 @@ export default function Toolbar({
         style={{
           display: "flex",
           flexDirection: "column",
-          gap: isMobile ? 6 : 10
+          gap: isMobile ? 6 : 12
         }}
       >
         <div
@@ -287,8 +305,11 @@ export default function Toolbar({
 
         <button
           {...pressHandlers}
+          onClick={clearAllPhases}
+          {...(!isMobile ? desktopHoverHandlers : {})}
           style={{
             ...baseBtn,
+            ...(!isMobile ? desktopHoverPop : {}),
             height: isMobile ? 28 : 36,
             background: "#1f6f8b",
             border: "1px solid #2a8fb0",
@@ -301,8 +322,11 @@ export default function Toolbar({
 
         <button
           {...pressHandlers}
+          onClick={clearCurrentPhase}
+          {...(!isMobile ? desktopHoverHandlers : {})}
           style={{
             ...baseBtn,
+            ...(!isMobile ? desktopHoverPop : {}),
             height: isMobile ? 26 : 32,
             background: "#232833",
             color: "#cfd6e4"
@@ -318,11 +342,12 @@ export default function Toolbar({
             marginTop: 2
           }}
         >
-          <button {...pressHandlers} style={{ ...baseBtn, flex: 1 }}>👤</button>
-          <button {...pressHandlers} style={{ ...baseBtn, flex: 1 }}>💥</button>
-          <button {...pressHandlers} style={{ ...baseBtn, flex: 1 }}>✏️</button>
-          <button {...pressHandlers} style={{ ...baseBtn, flex: 1 }}>📝</button>
-          <button {...pressHandlers} style={{ ...baseBtn, flex: 1 }}>🖼</button>
+          <button {...pressHandlers} {...(!isMobile ? desktopHoverHandlers : {})} style={{ ...baseBtn, ...(!isMobile ? desktopHoverPop : {}), flex: 1 }} onClick={clearPlayersInPhase}>👤</button>
+          <button {...pressHandlers} {...(!isMobile ? desktopHoverHandlers : {})} style={{ ...baseBtn, ...(!isMobile ? desktopHoverPop : {}), flex: 1 }}>💥</button>
+          <button {...pressHandlers} {...(!isMobile ? desktopHoverHandlers : {})} style={{ ...baseBtn, ...(!isMobile ? desktopHoverPop : {}), flex: 1 }} onClick={clearStrokesInPhase}>✏️</button>
+          <button {...pressHandlers} {...(!isMobile ? desktopHoverHandlers : {})} style={{ ...baseBtn, ...(!isMobile ? desktopHoverPop : {}), flex: 1 }}>📝</button>
+          <button {...pressHandlers} {...(!isMobile ? desktopHoverHandlers : {})} style={{ ...baseBtn, ...(!isMobile ? desktopHoverPop : {}), flex: 1 }}>🖼</button>
+
         </div>
       </div>
 
@@ -332,11 +357,14 @@ export default function Toolbar({
 
       {/* DRAW TOOLS */}
       <div style={rowStyle}>
-        <button
+              <button
           {...pressHandlers}
+          {...(!isMobile ? desktopHoverHandlers : {})}
           style={toolBtn(activeTool === "pen", "#2ed573")}
+          {...(!isMobile ? desktopHoverPop : {})}
           onClick={() => {
-            setTool("pen");
+            setPenOpen((o) => !o);
+            setTool(penTool);
             setActiveTool("pen");
           }}
         >
@@ -345,42 +373,148 @@ export default function Toolbar({
 
         <button
           {...pressHandlers}
-          style={toolBtn(activeTool === "arrow", "#1e90ff")}
-          onClick={() => {
-            setTool("arrow");
-            setActiveTool("arrow");
-          }}
-        >
-          ➤
-        </button>
-
-        <button
-          {...pressHandlers}
+          {...(!isMobile ? desktopHoverHandlers : {})}
           style={toolBtn(activeTool === "eraser", "#ff4757")}
+          {...(!isMobile ? desktopHoverPop : {})}
           onClick={() => {
             setTool("eraser");
             setActiveTool("eraser");
+            setPenOpen(false);
           }}
         >
           ⛔
         </button>
-
-        <input
-          type="color"
-          onChange={(e) => setColor(e.target.value)}
-          style={{
-            height: isMobile ? 24 : 32,
-            width: isMobile ? 28 : 36,
-            borderRadius: isMobile ? 6 : 8,
-            border: "none",
-            background: "none"
-          }}
-        />
-
-        <button {...pressHandlers} style={baseBtn} onClick={clearCanvas}>
-          🗑
-        </button>
       </div>
+            {penOpen && (
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(3, 1fr)",
+            gap: 6
+          }}
+          
+        >
+                    {[
+            ["pen", "✏️"],
+            ["arrow", "➤"],
+            ["dashed", "┄┄"],
+            ["line", "─"],
+            ["rect", "⬛"],
+            ["path", "〰️"]
+          ].map(([type, icon]) => (
+            <button
+              key={type}
+              {...pressHandlers}
+              {...(!isMobile ? desktopHoverHandlers : {})}
+              onClick={() => {
+                setPenTool(type);
+                setTool(type);
+              }}
+              style={{
+                ...baseBtn,
+                ...(!isMobile ? desktopHoverPop : {}),
+                fontSize: 11,
+                background:
+                  penTool === type ? "#2ed57333" : "#2f3542",
+                border:
+                  penTool === type
+                    ? "1px solid #2ed573"
+                    : "1px solid #2f3542",
+                color: penTool === type ? "#2ed573" : "#fff"
+              }}
+            
+            >
+              {icon}
+            </button>
+          ))}
+        </div>
+      )}
+            {penOpen && (
+        <div
+          style={{
+            marginTop: 10,
+            padding: 10,
+            borderRadius: 10,
+            background: "#1f2430",
+            border: "1px solid #2f3542",
+            display: "flex",
+            flexDirection: "column",
+            gap: 12
+          }}
+        >
+         {/* COLOR */}
+<div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+  <div style={{ fontSize: 11, opacity: 0.75 }}>Color</div>
+
+  <label
+  {...(!isMobile ? desktopHoverHandlers : {})}
+    style={{
+      width: 44,
+      height: 44,
+      ...(!isMobile ? desktopHoverPop : {}),
+      borderRadius: "50%",
+      cursor: "pointer",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center"
+    }}
+  >
+    <img
+      src="/ui/color-wheel.png"
+      alt="Color picker"
+      draggable={false}
+      style={{
+        width: "100%",
+        height: "100%",
+        borderRadius: "50%",
+        display: "block"
+      }}
+    />
+
+    <input
+      type="color"
+      onChange={(e) => setColor(e.target.value)}
+      style={{
+        position: "absolute",
+        opacity: 0,
+        pointerEvents: "none"
+      }}
+    />
+  </label>
+</div>
+
+
+
+          {/* THICKNESS */}
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            <div style={{ fontSize: 11, opacity: 0.75 }}>Thickness</div>
+            <input
+              type="range"
+              min={1}
+              max={12}
+              defaultValue={3}
+              onChange={(e) => setPenWidth(Number(e.target.value))}
+              style={{ width: "100%" }}
+            />
+          </div>
+
+          {/* OPACITY */}
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            <div style={{ fontSize: 11, opacity: 0.75 }}>Opacity</div>
+            <input
+              type="range"
+              min={0.1}
+              max={1}
+              step={0.05}
+              defaultValue={1}
+              onChange={(e) => setPenOpacity(Number(e.target.value))}
+              style={{ width: "100%" }}
+            />
+          </div>
+        </div>
+      )}
+
+
 
       <div
         style={{
@@ -398,23 +532,10 @@ export default function Toolbar({
       <div style={{ height: 4 }} />
 
       {/* HISTORY */}
-      <div style={rowStyle}>
-        <button {...pressHandlers} style={baseBtn} onClick={undo}>
-          ↶
-        </button>
-        <button {...pressHandlers} style={baseBtn} onClick={redo}>
-          ↷
-        </button>
-      </div>
 
       <Divider />
 
       {/* SAVE */}
-      <div style={rowStyle}>
-        <button {...pressHandlers} style={baseBtn} onClick={save}>
-          💾 Save
-        </button>
-      </div>
 
       <Divider />
 
@@ -435,8 +556,25 @@ const Divider = () => (
   />
 );
 
+const hoverPop = {
+  transition: "transform 140ms ease, box-shadow 140ms ease",
+};
+
+const hoverPopHandlers = {
+  onMouseEnter: (e) => {
+    e.currentTarget.style.transform = "scale(1.06)";
+    e.currentTarget.style.boxShadow = "0 6px 18px rgba(0,0,0,0.35)";
+  },
+  onMouseLeave: (e) => {
+    e.currentTarget.style.transform = "scale(1)";
+    e.currentTarget.style.boxShadow = "";
+  }
+};
+
+
 const baseBtn = {
   flex: 1,
+  maxWidth: "100%",
   height: 32,
   borderRadius: 10,
   border: "1px solid #2f3542",
@@ -476,6 +614,21 @@ const iconBtn = {
   color: "#fff",
   cursor: "pointer"
 };
+const desktopHoverPop = {
+  transition: "transform 140ms ease, box-shadow 140ms ease"
+};
+
+const desktopHoverHandlers = {
+  onMouseEnter: (e) => {
+    e.currentTarget.style.transform = "scale(1.06)";
+    e.currentTarget.style.boxShadow = "0 6px 18px rgba(0,0,0,0.35)";
+  },
+  onMouseLeave: (e) => {
+    e.currentTarget.style.transform = "scale(1)";
+    e.currentTarget.style.boxShadow = "";
+  }
+};
+
 
 
 

@@ -32,6 +32,8 @@ export default function StrategyCanvas() {
   const [selectedPlayer, setSelectedPlayer] = useState(null);
   const [tool, setTool] = useState("pen");
   const [penColor, setPenColor] = useState("yellow");
+    const [penWidth, setPenWidth] = useState(3);
+  const [penOpacity, setPenOpacity] = useState(1);
   const [teamMode, setTeamMode] = useState("ally"); // "ally" | "enemy"
 
   useEffect(() => {
@@ -45,6 +47,21 @@ export default function StrategyCanvas() {
   window.addEventListener("resize", detect);
   return () => window.removeEventListener("resize", detect);
 }, []);
+
+const centerHoverHandlers = {
+  onMouseEnter: (e) => {
+    e.currentTarget.style.transform = "scale(1.08)";
+    e.currentTarget.style.boxShadow = "0 6px 18px rgba(0,0,0,0.45)";
+  },
+  onMouseLeave: (e) => {
+    e.currentTarget.style.transform = "scale(1)";
+    e.currentTarget.style.boxShadow = "";
+  }
+};
+
+const centerHoverStyle = {
+  transition: "transform 140ms ease, box-shadow 140ms ease"
+};
 
 
   const makeInitialPhases = () =>
@@ -116,6 +133,46 @@ const [phases, setPhases] = useState(makeInitialPhases);
       const updated = deepCopy(prev);
       const p = updated[currentPhaseIndex];
       if (!p.redoStack.length) return prev;
+
+        // ---------------- DELETE HELPERS ----------------
+  const clearCurrentPhase = () => {
+    pushHistory();
+    setPhases((prev) => {
+      const updated = deepCopy(prev);
+      updated[currentPhaseIndex].players = [];
+      updated[currentPhaseIndex].strokes = [];
+      return updated;
+    });
+  };
+
+  const clearAllPhases = () => {
+    pushHistory();
+    setPhases((prev) =>
+      prev.map((p) => ({
+        ...p,
+        players: [],
+        strokes: []
+      }))
+    );
+  };
+
+  const clearPlayersInPhase = () => {
+    pushHistory();
+    setPhases((prev) => {
+      const updated = deepCopy(prev);
+      updated[currentPhaseIndex].players = [];
+      return updated;
+    });
+  };
+
+  const clearStrokesInPhase = () => {
+    pushHistory();
+    setPhases((prev) => {
+      const updated = deepCopy(prev);
+      updated[currentPhaseIndex].strokes = [];
+      return updated;
+    });
+  };
 
       p.undoStack.push(
         deepCopy({
@@ -268,13 +325,36 @@ const [phases, setPhases] = useState(makeInitialPhases);
     pushHistory();
     isDrawingRef.current = true;
 
-    const stroke = {
-      id: uid(),
-      type: tool === "arrow" ? "arrow" : "freehand",
-      color: penColor,
-      width: 3,
-      points: [pos]
+        const normalizeStrokeType = (tool) => {
+      switch (tool) {
+        case "arrow":
+          return "arrow";
+           case "path":
+          return "path";
+          case "rect":
+          return "rect";
+                  case "line":
+          return "line";
+                  case "dashed":
+          return "dashed";
+        case "pen":
+        default:
+          return "freehand";
+      }
     };
+
+           const stroke = {
+      id: uid(),
+      type: normalizeStrokeType(tool),
+      color: penColor,
+      width: penWidth,
+      opacity: penOpacity,
+      points:
+        tool === "line" || tool === "rect"
+          ? [pos, pos]
+          : [pos]
+    };
+
 
     setPhases((prev) => {
       const updated = deepCopy(prev);
@@ -306,7 +386,16 @@ const [phases, setPhases] = useState(makeInitialPhases);
       const updated = deepCopy(prev);
       const strokes = updated[currentPhaseIndex].strokes;
       const s = strokes[strokes.length - 1];
+            if (s.type === "rect") {
+        s.points[1] = pos;
+        return updated;
+      }
+
       if (!s) return updated;
+      if (s.type === "line") {
+        s.points[1] = pos;
+        return updated;
+      }
 
       const last = s.points[s.points.length - 1];
       if (dist(last, pos) >= MIN_DIST) {
@@ -399,12 +488,76 @@ const [phases, setPhases] = useState(makeInitialPhases);
     };
 
     currentPhase.strokes.forEach((s) => {
+      ctx.globalAlpha = s.opacity ?? 1;
       if (s.type === "freehand") {
         drawSmoothPath(s.points, s.color, s.width);
+      }
+            if (s.type === "dashed") {
+        if (s.points.length < 2) return;
+        if (s.type === "line") {
+        if (s.points.length < 2) return;
+              if (s.type === "rect") {
+        if (s.points.length < 2) return;
+
+        const a = s.points[0];
+        const b = s.points[1];
+
+        const x = Math.min(a.x, b.x);
+        const y = Math.min(a.y, b.y);
+        const w = Math.abs(b.x - a.x);
+        const h = Math.abs(b.y - a.y);
+
+        ctx.strokeStyle = s.color;
+        ctx.lineWidth = s.width;
+        ctx.lineJoin = "round";
+
+        ctx.strokeRect(x, y, w, h);
+      }
+
+
+        ctx.strokeStyle = s.color;
+        ctx.lineWidth = s.width;
+        ctx.lineCap = "round";
+
+        ctx.beginPath();
+        ctx.moveTo(s.points[0].x, s.points[0].y);
+        ctx.lineTo(s.points[1].x, s.points[1].y);
+        ctx.stroke();
+      }
+
+        ctx.save();
+        ctx.strokeStyle = s.color;
+        ctx.lineWidth = s.width;
+        ctx.setLineDash([8, 6]);
+        ctx.lineCap = "round";
+        ctx.lineJoin = "round";
+
+        ctx.beginPath();
+        ctx.moveTo(s.points[0].x, s.points[0].y);
+
+        for (let i = 1; i < s.points.length; i++) {
+          ctx.lineTo(s.points[i].x, s.points[i].y);
+        }
+
+        ctx.stroke();
+        ctx.restore();
       }
 
       if (s.type === "arrow") {
         if (s.points.length >= 2) {
+           if (s.type === "path") {
+        if (s.points.length < 2) return;
+
+        // draw smooth curved path
+        drawSmoothPath(s.points, s.color, s.width);
+
+        // arrowhead at end
+        const a = s.points[s.points.length - 2];
+        const b = s.points[s.points.length - 1];
+        const velocity = dist(a, b);
+
+        drawChevronHead(a, b, s.color, s.width, velocity);
+      }
           const a = s.points[s.points.length - 2];
           const b = s.points[s.points.length - 1];
           const velocity = dist(a, b);
@@ -435,10 +588,51 @@ const [phases, setPhases] = useState(makeInitialPhases);
         }
       }
     });
+    ctx.globalAlpha = 1;
   }, [currentPhase]);
 
   // ---------------- CLEAR ----------------
   const clearCanvas = () => {
+    pushHistory();
+    setPhases((prev) => {
+      const updated = deepCopy(prev);
+      updated[currentPhaseIndex].strokes = [];
+      return updated;
+    });
+  };
+
+    // ---------------- DELETE HELPERS ----------------
+  const clearCurrentPhase = () => {
+    pushHistory();
+    setPhases((prev) => {
+      const updated = deepCopy(prev);
+      updated[currentPhaseIndex].players = [];
+      updated[currentPhaseIndex].strokes = [];
+      return updated;
+    });
+  };
+
+  const clearAllPhases = () => {
+    pushHistory();
+    setPhases((prev) =>
+      prev.map((p) => ({
+        ...p,
+        players: [],
+        strokes: []
+      }))
+    );
+  };
+
+  const clearPlayersInPhase = () => {
+    pushHistory();
+    setPhases((prev) => {
+      const updated = deepCopy(prev);
+      updated[currentPhaseIndex].players = [];
+      return updated;
+    });
+  };
+
+  const clearStrokesInPhase = () => {
     pushHistory();
     setPhases((prev) => {
       const updated = deepCopy(prev);
@@ -492,7 +686,7 @@ return (
       <div
   data-ui-panel
   style={{
-    width: isMobile ? 200 : 320,
+    width: isMobile ? 200 : 330,
     height: "100%",
     background: "rgba(18,18,18,0.95)",
     borderRight: isMobile ? "1px solid #2a2f3a" : "1px solid #1f2430",
@@ -502,7 +696,7 @@ boxShadow: isMobile
     display: "flex",
     flexDirection: "column",
     zIndex: 10,
-    overflow: "hidden"
+    overflow: "visible"
   }}
 >
         <div
@@ -512,8 +706,8 @@ boxShadow: isMobile
     overflowX: "hidden",
     overscrollBehavior: "contain",
     WebkitOverflowScrolling: "touch",
-    paddingRight: isMobile ? 10 : 4,
-    paddingLeft: isMobile ? 2 : 0,
+    paddingRight: isMobile ? 10 : 24,
+    paddingLeft:0,
     scrollbarWidth: "none",
     msOverflowStyle: "none"
   }}
@@ -529,7 +723,13 @@ boxShadow: isMobile
       <Toolbar
   isMobile={isMobile}
   setTool={setTool}
+  clearAllPhases={clearAllPhases}
+  clearCurrentPhase={clearCurrentPhase}
+  clearPlayersInPhase={clearPlayersInPhase}
+  clearStrokesInPhase={clearStrokesInPhase}
   setColor={setPenColor}
+  setPenWidth={setPenWidth}
+  setPenOpacity={setPenOpacity}
   clearCanvas={clearCanvas}
   save={handleSave}
   load={handleLoad}
@@ -591,6 +791,64 @@ boxShadow: isMobile
       }}
     />
   )}
+
+        {/* TOP-LEFT UTILITY CLUSTER */}
+      <div
+        style={{
+          position: "absolute",
+          top: 12,
+          left: 12,
+          display: "flex",
+          gap: 8,
+          zIndex: 20
+        }}
+      >
+        {/* SETTINGS (placeholder) */}
+        <div
+        {...(!isMobile ? centerHoverHandlers : {})}
+          style={{
+            width: 40,
+            height: 40,
+            ...(!isMobile ? centerHoverStyle : {}),
+            borderRadius: 10,
+            background: "rgba(24,24,28,0.9)",
+            border: "1px solid #2a2f3a",
+            color: "#cfd6e4",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontSize: 18,
+            cursor: "pointer",
+            userSelect: "none"
+          }}
+        >
+          ⚙️
+        </div>
+
+        {/* SAVE */}
+        <div
+        {...(!isMobile ? centerHoverHandlers : {})}
+          onClick={handleSave}
+          style={{
+            width: 40,
+            height: 40,
+            ...(!isMobile ? centerHoverStyle : {}),
+            borderRadius: 10,
+            background: "rgba(24,24,28,0.9)",
+            border: "1px solid #2a2f3a",
+            color: "#cfd6e4",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontSize: 18,
+            cursor: "pointer",
+            userSelect: "none"
+          }}
+        >
+          💾
+        </div>
+      </div>
+
      {/* MAP CONTROL STRIP (VALOPLANT-STYLE) */}
       <div
         style={{
@@ -602,12 +860,60 @@ boxShadow: isMobile
           zIndex: 20
         }}
       >
+                {/* UNDO */}
+        <div
+        {...(!isMobile ? centerHoverHandlers : {})}
+          onClick={undo}
+          style={{
+            width: 40,
+            height: 40,
+            ...(!isMobile ? centerHoverStyle : {}),
+            borderRadius: 10,
+            background: "rgba(24,24,28,0.9)",
+            border: "1px solid #2a2f3a",
+            color: "#cfd6e4",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontSize: 18,
+            cursor: "pointer",
+            userSelect: "none"
+          }}
+        >
+          ↶
+        </div>
+
+        {/* REDO */}
+        <div
+        {...(!isMobile ? centerHoverHandlers : {})}
+          onClick={redo}
+          style={{
+            width: 40,
+            height: 40,
+            ...(!isMobile ? centerHoverStyle : {}),
+            borderRadius: 10,
+            background: "rgba(24,24,28,0.9)",
+            border: "1px solid #2a2f3a",
+            color: "#cfd6e4",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontSize: 18,
+            cursor: "pointer",
+            userSelect: "none"
+          }}
+        >
+          ↷
+        </div>
+
         {/* BIN */}
         <div
+        {...(!isMobile ? centerHoverHandlers : {})}
           id="map-bin"
           style={{
             width: 40,
             height: 40,
+            ...(!isMobile ? centerHoverStyle : {}),
             borderRadius: 10,
             background: "rgba(24,24,28,0.9)",
             border: "1px solid #2a2f3a",
