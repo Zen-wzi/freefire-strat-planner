@@ -494,7 +494,16 @@ export default function Toolbar({
               max={12}
               defaultValue={3}
               onChange={(e) => setPenWidth(Number(e.target.value))}
-              style={{ width: "100%" }}
+                style={{
+    width: "100%",
+    appearance: "none",
+    height: 6,
+    borderRadius: 6,
+    background: "linear-gradient(to right, #2ed573, #2f3542)",
+    outline: "none",
+    cursor: "pointer"
+  }}
+
             />
           </div>
 
@@ -508,7 +517,16 @@ export default function Toolbar({
               step={0.05}
               defaultValue={1}
               onChange={(e) => setPenOpacity(Number(e.target.value))}
-              style={{ width: "100%" }}
+                style={{
+    width: "100%",
+    appearance: "none",
+    height: 6,
+    borderRadius: 6,
+    background: "linear-gradient(to right, rgba(255,255,255,0.3), #2f3542)",
+    outline: "none",
+    cursor: "pointer"
+  }}
+
             />
           </div>
         </div>

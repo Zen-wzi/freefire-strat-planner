@@ -23,6 +23,8 @@ export default function StrategyCanvas() {
   const canvasRef = useRef(null);
   const isDrawingRef = useRef(false);
   const activePointerIdRef = useRef(null);
+  const lineDraftRef = useRef(null);
+  const activeDrawToolRef = useRef(null);
 
   const [cursorCSS, setCursorCSS] = useState(null);
   const [insideStage, setInsideStage] = useState(false);
@@ -302,11 +304,43 @@ const [phases, setPhases] = useState(makeInitialPhases);
   // ---------------- POINTER ----------------
   const handlePointerDown = (e) => {
     if (activePointerIdRef.current !== null) return;
+    isDrawingRef.current = true;
     activePointerIdRef.current = e.pointerId;
     e.preventDefault();
     updateCursorCSS(e);
-
+    e.currentTarget.setPointerCapture(e.pointerId);
     const pos = getCanvasPos(e);
+
+      if (tool === "line") {
+    pushHistory();
+    isDrawingRef.current = true;
+    activeDrawToolRef.current = "line";
+
+
+    const stroke = {
+  id: uid(),
+  type: "line",
+  color: penColor,
+  width: 3,
+  opacity: penOpacity ?? 1,
+width: penWidth ?? 3,
+  start: pos,
+  end: pos,
+  points: [pos, pos]
+};
+
+
+    lineDraftRef.current = stroke;
+
+    setPhases((prev) => {
+      const updated = deepCopy(prev);
+      updated[currentPhaseIndex].strokes.push(stroke);
+      return updated;
+    });
+
+    return;
+  }
+
 
     if (tool === "eraser") {
       pushHistory();
@@ -366,9 +400,28 @@ const [phases, setPhases] = useState(makeInitialPhases);
   const handlePointerMove = (e) => {
     updateCursorCSS(e);
     if (!isDrawingRef.current) return;
-    if (e.pointerId !== activePointerIdRef.current) return;
+    
 
     const pos = getCanvasPos(e);
+
+      if (activeDrawToolRef.current === "line" && lineDraftRef.current) {
+    setPhases((prev) => {
+      const updated = deepCopy(prev);
+      const strokes = updated[currentPhaseIndex].strokes;
+          const draftId = lineDraftRef.current?.id;
+    if (!draftId) return updated;
+
+    const s = strokes.find((st) => st.id === draftId);
+    if (!s) return updated;
+
+    s.end = pos;
+    s.points[1] = pos;
+
+      return updated;
+    });
+    return;
+  }
+
 
     if (tool === "eraser") {
       setPhases((prev) => {
@@ -392,12 +445,26 @@ const [phases, setPhases] = useState(makeInitialPhases);
       }
 
       if (!s) return updated;
-      if (s.type === "line") {
-        s.points[1] = pos;
-        return updated;
-      }
+
+if (s.type === "rect") {
+  s.points[1] = pos;
+  return updated;
+}
+
+if (s.type === "line") {
+  s.points[1] = pos;
+  return updated;
+}
+
 
       const last = s.points[s.points.length - 1];
+      if (s.type === "path") {
+  if (dist(s.points[s.points.length - 1], pos) >= MIN_DIST) {
+    s.points.push(pos);
+  }
+  return updated;
+}
+
       if (dist(last, pos) >= MIN_DIST) {
         s.points.push(pos);
       }
@@ -408,7 +475,19 @@ const [phases, setPhases] = useState(makeInitialPhases);
   const handlePointerUp = () => {
     isDrawingRef.current = false;
     activePointerIdRef.current = null;
-  };
+        try {
+    if (activePointerIdRef.current !== null) {
+      canvasRef.current?.releasePointerCapture(activePointerIdRef.current);
+    }
+  } catch {}
+
+  activePointerIdRef.current = null;
+  lineDraftRef.current = null;
+  activeDrawToolRef.current = null;
+};
+
+
+
   // --- END PART 1 ---
   // ---------------- REDRAW ----------------
   useEffect(() => {
@@ -489,9 +568,55 @@ const [phases, setPhases] = useState(makeInitialPhases);
 
     currentPhase.strokes.forEach((s) => {
       ctx.globalAlpha = s.opacity ?? 1;
+      if (s.type === "rect") {
+  if (s.points.length < 2) return;
+
+  const a = s.points[0];
+  const b = s.points[1];
+
+  const x = Math.min(a.x, b.x);
+  const y = Math.min(a.y, b.y);
+  const w = Math.abs(b.x - a.x);
+  const h = Math.abs(b.y - a.y);
+
+  ctx.strokeStyle = s.color;
+  ctx.lineWidth = s.width;
+  ctx.lineJoin = "round";
+
+  ctx.strokeRect(x, y, w, h);
+}
+
       if (s.type === "freehand") {
         drawSmoothPath(s.points, s.color, s.width);
       }
+      if (s.type === "path") {
+  if (!s.points || s.points.length < 2) return;
+
+  ctx.save();
+  ctx.globalAlpha = s.opacity ?? 1;
+
+  drawSmoothPath(s.points, s.color, s.width);
+
+  const a = s.points[s.points.length - 2];
+  const b = s.points[s.points.length - 1];
+  const velocity = dist(a, b);
+
+  drawChevronHead(a, b, s.color, s.width, velocity);
+
+  ctx.restore();
+}
+
+        if (s.type === "line") {
+    ctx.strokeStyle = s.color;
+    ctx.lineWidth = s.width;
+    ctx.lineCap = "round";
+    ctx.save();
+    ctx.globalAlpha = s.opacity ?? 1;
+    ctx.beginPath();
+    ctx.moveTo(s.start.x, s.start.y);
+    ctx.lineTo(s.end.x, s.end.y);
+    ctx.stroke();
+  }
             if (s.type === "dashed") {
         if (s.points.length < 2) return;
         if (s.type === "line") {
@@ -550,6 +675,17 @@ const [phases, setPhases] = useState(makeInitialPhases);
 
         // draw smooth curved path
         drawSmoothPath(s.points, s.color, s.width);
+        if (s.type === "path") {
+  if (s.points.length < 2) return;
+
+  drawSmoothPath(s.points, s.color, s.width);
+
+  const a = s.points[s.points.length - 2];
+  const b = s.points[s.points.length - 1];
+  const velocity = dist(a, b);
+
+  drawChevronHead(a, b, s.color, s.width, velocity);
+}
 
         // arrowhead at end
         const a = s.points[s.points.length - 2];
