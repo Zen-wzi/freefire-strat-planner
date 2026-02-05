@@ -142,8 +142,9 @@ export default function PlayerLayer({
         const left = (p.x / 1000) * containerSize.width;
         const top = (p.y / 600) * containerSize.height;
 
-        const isEnemy = p.color === "#ff4757";
-        const bgColor = isEnemy ? "#ff6b6b" : "#4cc9ff";
+        const isEnemy = p.color === "#ff4d4d";
+        const bgColor = isEnemy ? "#ff4d4d" : "#3da7ff";
+
         const fading = deletingId === p.id;
 
         return (

@@ -12,7 +12,15 @@ const MAPS = [
     name: "Purgatory",
     path: "/maps/purgatory.jpg",
     preview: "/maps/purgatory-preview.jpg"
-  }
+  },
+  { name: "kalahari",
+    path: "/maps/kalahari.jpg",
+    preview: "/maps/kalahari-preview.jpg"
+  },
+  { name: "nexterra",
+    path: "/maps/nexterra.jpg",
+    preview: "/maps/nexterra-preview.jpg"
+    },
 ];
 
 export default function Toolbar({
@@ -97,6 +105,7 @@ export default function Toolbar({
         color: "#fff"
       }}
     >
+      <style>{sliderCSS}</style>
       {/* STRATEGY HEADER SHELL */}
       <div
         style={{
@@ -485,50 +494,75 @@ export default function Toolbar({
 
 
 
-          {/* THICKNESS */}
-          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-            <div style={{ fontSize: 11, opacity: 0.75 }}>Thickness</div>
-            <input
-              type="range"
-              min={1}
-              max={12}
-              defaultValue={3}
-              onChange={(e) => setPenWidth(Number(e.target.value))}
-                style={{
-    width: "100%",
-    appearance: "none",
-    height: 6,
-    borderRadius: 6,
-    background: "linear-gradient(to right, #2ed573, #2f3542)",
-    outline: "none",
-    cursor: "pointer"
-  }}
-
-            />
-          </div>
-
           {/* OPACITY */}
-          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-            <div style={{ fontSize: 11, opacity: 0.75 }}>Opacity</div>
-            <input
-              type="range"
-              min={0.1}
-              max={1}
-              step={0.05}
-              defaultValue={1}
-              onChange={(e) => setPenOpacity(Number(e.target.value))}
-                style={{
+<div
+  style={{
+    display: "flex",
+    alignItems: "center",
+    gap: 10,
     width: "100%",
-    appearance: "none",
-    height: 6,
-    borderRadius: 6,
-    background: "linear-gradient(to right, rgba(255,255,255,0.3), #2f3542)",
-    outline: "none",
-    cursor: "pointer"
+    minWidth: 0
   }}
+>
+  <div style={{ fontSize: 12, opacity: 0.85, width: 70 }}>
+    Opacity
+  </div>
 
-            />
-          </div>
+  <input
+    type="range"
+    min={0.1}
+    max={1}
+    step={0.05}
+    defaultValue={1}
+    onChange={(e) => setPenOpacity(Number(e.target.value))}
+    style={{
+      flex: 1,
+      minWidth: 0,
+      maxWidth: "100%",
+      appearance: "none",
+      height: 6,
+      borderRadius: 10,
+      background: "linear-gradient(to right, #d1d5db, #9ca3af)",
+      outline: "none"
+    }}
+    onMouseDown={(e)=> e.stopPropagation()}
+  />
+</div>
+
+{/* THICKNESS */}
+<div
+  style={{
+    display: "flex",
+    alignItems: "center",
+    gap: 10,
+    width: "100%",
+    minWidth: 0
+  }}
+>
+  <div style={{ fontSize: 12, opacity: 0.85, width: 70 }}>
+    Thickness
+  </div>
+
+  <input
+    type="range"
+    min={1}
+    max={6}
+    defaultValue={3}
+    onChange={(e) => setPenWidth(Number(e.target.value))}
+    style={{
+      flex: 1,
+      minWidth: 0,
+      maxWidth: "100%",
+      appearance: "none",
+      height: 6,
+      borderRadius: 10,
+      background: "linear-gradient(to right, #d1d5db, #9ca3af)",
+      outline: "none"
+    }}
+    onMouseDown={(e)=> e.stopPropagation()}
+  />
+</div>
+
         </div>
       )}
 
@@ -646,6 +680,27 @@ const desktopHoverHandlers = {
     e.currentTarget.style.boxShadow = "";
   }
 };
+/* modern slider styling */
+const sliderCSS = `
+input[type="range"]::-webkit-slider-thumb {
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #ffffff;
+  border: 2px solid #9ca3af;
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+input[type="range"]::-webkit-slider-thumb:hover {
+  transform: scale(1.15);
+  box-shadow: 0 0 10px rgba(255,255,255,0.25);
+}
+input[type="range"]::-webkit-slider-runnable-track {
+  height: 6px;
+  border-radius: 10px;
+}
+`;
 
 
 

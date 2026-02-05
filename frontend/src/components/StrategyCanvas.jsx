@@ -229,9 +229,10 @@ const [phases, setPhases] = useState(makeInitialPhases);
       name,
       x: baseX + jitter(),
       y: baseY + jitter(),
-      color: teamMode === "ally" ? "#1e90ff" : "#ff4757",
+      color: teamMode === "ally" ? "#3da7ff" : "#ff4d4d",
       locked: false,
       character: charName
+
     });
 
     return updated;
@@ -589,19 +590,44 @@ if (s.type === "line") {
       if (s.type === "freehand") {
         drawSmoothPath(s.points, s.color, s.width);
       }
-      if (s.type === "path") {
-  if (!s.points || s.points.length < 2) return;
+     if (s.type === "path") {
+  if (s.points.length < 2) return;
+
+  const pts = s.points;
 
   ctx.save();
+  ctx.strokeStyle = s.color;
+  ctx.lineWidth = s.width;
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
   ctx.globalAlpha = s.opacity ?? 1;
 
-  drawSmoothPath(s.points, s.color, s.width);
+  // smooth curve
+  ctx.beginPath();
+  ctx.moveTo(pts[0].x, pts[0].y);
 
-  const a = s.points[s.points.length - 2];
-  const b = s.points[s.points.length - 1];
-  const velocity = dist(a, b);
+  for (let i = 1; i < pts.length - 1; i++) {
+    const midX = (pts[i].x + pts[i + 1].x) / 2;
+    const midY = (pts[i].y + pts[i + 1].y) / 2;
+    ctx.quadraticCurveTo(pts[i].x, pts[i].y, midX, midY);
+  }
 
-  drawChevronHead(a, b, s.color, s.width, velocity);
+  const last = pts[pts.length - 1];
+  ctx.lineTo(last.x, last.y);
+  ctx.stroke();
+
+  // start dot
+  ctx.beginPath();
+  const dotSize = Math.max(3, Math.min(8, s.width * 1.2));
+ctx.arc(pts[0].x, pts[0].y, dotSize, 0, Math.PI * 2);
+  ctx.fillStyle = s.color;
+  ctx.fill();
+
+  // end dot
+  ctx.beginPath();
+  const dotSizeEnd = Math.max(3, Math.min(8, s.width * 1.2));
+ctx.arc(last.x, last.y, dotSizeEnd, 0, Math.PI * 2);
+  ctx.fill();
 
   ctx.restore();
 }
@@ -674,6 +700,10 @@ if (s.type === "line") {
         if (s.points.length < 2) return;
 
         // draw smooth curved path
+        ctx.shadowColor = s.color;
+ctx.shadowBlur = 8;
+ctx.shadowOffsetX = 0;
+ctx.shadowOffsetY = 0;
         drawSmoothPath(s.points, s.color, s.width);
         if (s.type === "path") {
   if (s.points.length < 2) return;
@@ -725,7 +755,9 @@ if (s.type === "line") {
       }
     });
     ctx.globalAlpha = 1;
+    ctx.shadowBlur = 0;
   }, [currentPhase]);
+  
 
   // ---------------- CLEAR ----------------
   const clearCanvas = () => {
