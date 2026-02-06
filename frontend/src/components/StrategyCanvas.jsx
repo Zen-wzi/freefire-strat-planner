@@ -32,11 +32,25 @@ export default function StrategyCanvas() {
   const [isMobile, setIsMobile] = useState(false);
   const [containerSize, setContainerSize] = useState({ width: 1000, height: 600 });
   const [selectedPlayer, setSelectedPlayer] = useState(null);
-  const [tool, setTool] = useState("pen");
+  const [tool, setTool] = useState(null);
   const [penColor, setPenColor] = useState("yellow");
-    const [penWidth, setPenWidth] = useState(3);
+  const isPenTool = tool && tool !== "eraser";
+  const isEraserTool = tool === "eraser";
+  const [windowActive, setWindowActive] = useState(true);
+
+  const [penWidth, setPenWidth] = useState(3);
   const [penOpacity, setPenOpacity] = useState(1);
   const [teamMode, setTeamMode] = useState("ally"); // "ally" | "enemy"
+
+  const getCursorSize = () => {
+  if (!tool) return 0;
+  if (isEraserTool) return 26;
+
+  // pen tools scale with thickness
+  const base = 6;
+  return Math.max(6, penWidth * 2.2 + base);
+};
+
 
   useEffect(() => {
   const detect = () => {
@@ -77,10 +91,44 @@ const centerHoverStyle = {
     redoStack: []
   }));
 
+  // ------------------- HIDE CURSOR -------------------
 const [phases, setPhases] = useState(makeInitialPhases);
 
   const [currentPhaseIndex, setCurrentPhaseIndex] = useState(0);
   const currentPhase = phases[currentPhaseIndex];
+
+  useEffect(() => {
+  const leave = () => setWindowActive(false);
+  const enter = () => setWindowActive(true);
+
+  window.addEventListener("mouseleave", leave);
+  window.addEventListener("mouseenter", enter);
+
+  return () => {
+    window.removeEventListener("mouseleave", leave);
+    window.removeEventListener("mouseenter", enter);
+  };
+}, []);
+useEffect(() => {
+  const onBlur = () => setWindowActive(false);
+  const onFocus = () => setWindowActive(true);
+  const onLeave = () => setWindowActive(false);
+  const onEnter = () => setWindowActive(true);
+
+  window.addEventListener("blur", onBlur);
+  window.addEventListener("focus", onFocus);
+  document.addEventListener("mouseleave", onLeave);
+  document.addEventListener("mouseenter", onEnter);
+
+  return () => {
+    window.removeEventListener("blur", onBlur);
+    window.removeEventListener("focus", onFocus);
+    document.removeEventListener("mouseleave", onLeave);
+    document.removeEventListener("mouseenter", onEnter);
+  };
+}, []);
+
+
 
   // ---------------- RESIZE ----------------
   useEffect(() => {
@@ -245,11 +293,13 @@ const [phases, setPhases] = useState(makeInitialPhases);
     if (!containerRef.current || !canvasRef.current) return;
 
     const overUIPanel = e.target.closest("[data-ui-panel]");
-    if (overUIPanel) {
-      setInsideStage(false);
-      setCursorCSS(null);
-      return;
-    }
+const overUIButton = e.target.closest("[data-ui-button]");
+
+if (overUIPanel || overUIButton) {
+  setInsideStage(false);
+  setCursorCSS(null);
+  return;
+}
 
     const containerRect = containerRef.current.getBoundingClientRect();
     const canvasRect = canvasRef.current.getBoundingClientRect();
@@ -268,9 +318,9 @@ const [phases, setPhases] = useState(makeInitialPhases);
     }
 
     setCursorCSS({
-      x: e.clientX - containerRect.left,
-      y: e.clientY - containerRect.top
-    });
+  x: e.clientX,
+  y: e.clientY
+});
   };
 
   // --------- VECTOR ERASER HELPERS ---------
@@ -305,6 +355,8 @@ const [phases, setPhases] = useState(makeInitialPhases);
   // ---------------- POINTER ----------------
   const handlePointerDown = (e) => {
     if (activePointerIdRef.current !== null) return;
+      // do nothing if no tool selected
+  if (!tool) return;
     isDrawingRef.current = true;
     activePointerIdRef.current = e.pointerId;
     e.preventDefault();
@@ -400,6 +452,7 @@ width: penWidth ?? 3,
 
   const handlePointerMove = (e) => {
     updateCursorCSS(e);
+      if (!tool) return;
     if (!isDrawingRef.current) return;
     
 
@@ -973,6 +1026,7 @@ boxShadow: isMobile
       >
         {/* SETTINGS (placeholder) */}
         <div
+        data-ui-button
         {...(!isMobile ? centerHoverHandlers : {})}
           style={{
             width: 40,
@@ -995,6 +1049,7 @@ boxShadow: isMobile
 
         {/* SAVE */}
         <div
+        data-ui-button
         {...(!isMobile ? centerHoverHandlers : {})}
           onClick={handleSave}
           style={{
@@ -1018,11 +1073,12 @@ boxShadow: isMobile
       </div>
 
      {/* MAP CONTROL STRIP (VALOPLANT-STYLE) */}
-      <div
-        style={{
-          position: "absolute",
-          top: 12,
-          right: 12,
+<div
+  data-ui-panel
+  style={{
+    position: "absolute",
+    top: 12,
+    right: 12,
           display: "flex",
           gap: 8,
           zIndex: 20
@@ -1127,9 +1183,10 @@ boxShadow: isMobile
           height: "100%",
           touchAction: "none",
           cursor:
-            !isMobile && (tool === "pen" || tool === "eraser" || tool === "arrow")
-              ? "none"
-              : "default"
+  !isMobile && tool
+    ? "none"
+    : "default"
+
         }}
       />
 
@@ -1159,6 +1216,73 @@ boxShadow: isMobile
   selectedPlayer={selectedPlayer}
   containerSize={containerSize}
 />
+{/* CUSTOM CURSOR */}
+{!isMobile && tool && insideStage && cursorCSS && windowActive && (
+  <div
+    style={{
+      left: cursorCSS.x,
+top: cursorCSS.y,
+pointerEvents: "none",
+zIndex: 50,
+position: "fixed",
+top: 0,
+left: 0
+
+    }}
+  >
+    {/* ERASER */}
+    {isEraserTool && (
+  <div
+    style={{
+      position: "absolute",
+      left: cursorCSS.x,
+      top: cursorCSS.y,
+      pointerEvents: "none",
+      zIndex: 50
+    }}
+  >
+    <div
+      style={{
+        transform: "translate(-50%, -50%)",
+        width: 26,
+        height: 26,
+        borderRadius: 6,
+        border: "2px solid #ff6b6b",
+        background: "rgba(255,80,80,0.15)",
+        backdropFilter: "blur(2px)"
+      }}
+    />
+  </div>
+)}
+
+    {/* PEN + ALL SUBTOOLS */}
+{isPenTool && (
+  <div
+    style={{
+      position: "absolute",
+      left: cursorCSS.x,
+      top: cursorCSS.y,
+      pointerEvents: "none",
+      zIndex: 50,
+      transform: "translate(-50%, -50%)"
+    }}
+  >
+    <div
+      style={{
+        width: 18,
+        height: 18,
+        borderRadius: "50%",
+        border: `2px solid ${penColor}`,
+        boxShadow: `0 0 12px ${penColor}88`,
+        background: `${penColor}22`
+      }}
+    />
+  </div>
+)}
+
+  </div>
+)}
+
     </div>
 
     {/* RIGHT PANEL (CHARACTERS) */}

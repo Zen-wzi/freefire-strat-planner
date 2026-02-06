@@ -50,7 +50,7 @@ export default function Toolbar({
   const desktop = !isMobile;
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(phaseName);
-  const [activeTool, setActiveTool] = useState("pen");
+  const [activeTool, setActiveTool] = useState(null);
   const [penOpen, setPenOpen] = useState(false);
   const [penTool, setPenTool] = useState("pen"); // pen | arrow | dashed | line | rect | path
 
@@ -372,10 +372,17 @@ export default function Toolbar({
           style={toolBtn(activeTool === "pen", "#2ed573")}
           {...(!isMobile ? desktopHoverPop : {})}
           onClick={() => {
-            setPenOpen((o) => !o);
-            setTool(penTool);
-            setActiveTool("pen");
-          }}
+  // toggle pen tool
+  if (activeTool === "pen") {
+    setTool(null);
+    setActiveTool(null);
+    setPenOpen(false);
+  } else {
+    setPenOpen(true);
+    setTool(penTool);
+    setActiveTool("pen");
+  }
+}}
         >
           ✏️
         </button>
@@ -386,10 +393,16 @@ export default function Toolbar({
           style={toolBtn(activeTool === "eraser", "#ff4757")}
           {...(!isMobile ? desktopHoverPop : {})}
           onClick={() => {
-            setTool("eraser");
-            setActiveTool("eraser");
-            setPenOpen(false);
-          }}
+  if (activeTool === "eraser") {
+    setTool(null);
+    setActiveTool(null);
+  } else {
+    setTool("eraser");
+    setActiveTool("eraser");
+  }
+  setPenOpen(false);
+}}
+
         >
           ⛔
         </button>
