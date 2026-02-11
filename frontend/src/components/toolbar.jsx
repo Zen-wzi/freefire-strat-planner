@@ -6,7 +6,7 @@ const MAPS = [
   {
     name: "Bermuda",
     path: "/maps/bermuda.jpg",
-    preview: "/maps/bermuda-preview.webp"
+    preview: "/maps/bermuda-preview.jpg"
   },
   {
     name: "Purgatory",
@@ -21,6 +21,14 @@ const MAPS = [
     path: "/maps/nexterra.jpg",
     preview: "/maps/nexterra-preview.jpg"
     },
+    { name:"alpine",
+      path: "/maps/alpine.jpg",
+      preview: "/maps/alpine-preview.jpg"
+    },
+    { name: "solara",
+      path: "/maps/solara.jpg",
+      preview: "/maps/solara-preview.jpg"
+    }
 ];
 
 export default function Toolbar({

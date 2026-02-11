@@ -2,6 +2,7 @@
 import { useRef, useState, useEffect } from "react";
 import PlayerLayer from "./PlayerLayer";
 import Toolbar from "./Toolbar";
+import UtilityLayer from "./UtilityLayer";
 
 const deepCopy = (v) => JSON.parse(JSON.stringify(v));
 const uid = () => Math.random().toString(36).slice(2);
@@ -41,6 +42,8 @@ export default function StrategyCanvas() {
   const [penWidth, setPenWidth] = useState(3);
   const [penOpacity, setPenOpacity] = useState(1);
   const [teamMode, setTeamMode] = useState("ally"); // "ally" | "enemy"
+  const MODE = "BR"; // BR = full map, CS = clash squad later
+
 
   const getCursorSize = () => {
   if (!tool) return 0;
@@ -87,6 +90,7 @@ const centerHoverStyle = {
     map: "/maps/bermuda.jpg",
     players: [],
     strokes: [],
+    utilities: [],
     undoStack: [],
     redoStack: []
   }));
@@ -128,6 +132,18 @@ useEffect(() => {
   };
 }, []);
 
+useEffect(() => {
+  const handleKey = (e) => {
+    if (e.key.toLowerCase() === "g") {
+      spawnTestSmoke();
+    }
+  };
+
+  window.addEventListener("keydown", handleKey);
+  return () => window.removeEventListener("keydown", handleKey);
+}, [phases, currentPhaseIndex]);
+
+
 
 
   // ---------------- RESIZE ----------------
@@ -152,6 +168,7 @@ useEffect(() => {
           map: p.map,
           players: p.players,
           strokes: p.strokes,
+          utilities: p.utilities
         })
       );
       p.redoStack = [];
@@ -170,10 +187,16 @@ useEffect(() => {
           map: p.map,
           players: p.players,
           strokes: p.strokes,
+          utilities: p.utilities
         })
       );
 
-      Object.assign(p, p.undoStack.pop());
+      const state = p.undoStack.pop();
+      p.map = state.map;
+      p.players = state.players;
+      p.strokes = state.strokes;
+      p.utilities = state.utilities || [];
+
       return updated;
     });
   };
@@ -229,10 +252,16 @@ useEffect(() => {
           map: p.map,
           players: p.players,
           strokes: p.strokes,
+          utilities: p.utilities
         })
       );
 
-      Object.assign(p, p.redoStack.shift());
+      const state = p.redoStack.shift();
+      p.map = state.map;
+      p.players = state.players;
+      p.strokes = state.strokes;
+      p.utilities = state.utilities || [];
+
       return updated;
     });
   };
@@ -252,6 +281,7 @@ useEffect(() => {
 
   const spawnCharacter = (charName) => {
   pushHistory();
+  
 
   setPhases((prev) => {
     const updated = deepCopy(prev);
@@ -286,6 +316,31 @@ useEffect(() => {
     return updated;
   });
 };
+//---bolt---
+const spawnBolt = () => {
+  const exists = currentPhase.utilities?.some(u => u.type === "bolt");
+  if (exists) return;
+
+  pushHistory();
+
+  setPhases(prev => {
+    const updated = deepCopy(prev);
+    const p = updated[currentPhaseIndex];
+
+    if (!p.utilities) p.utilities = [];
+
+    p.utilities.push({
+      id: uid(),
+      type: "bolt",
+      x: 500,
+      y: 300,
+      radius: 40
+    });
+
+    return updated;
+  });
+};
+
 
 
   // Track cursor at CONTAINER level, but only render tactically inside STAGE
@@ -305,10 +360,11 @@ if (overUIPanel || overUIButton) {
     const canvasRect = canvasRef.current.getBoundingClientRect();
 
     const inside =
-      e.clientX >= canvasRect.left &&
-      e.clientX <= canvasRect.right &&
-      e.clientY >= canvasRect.top &&
-      e.clientY <= canvasRect.bottom;
+  e.clientX >= canvasRect.left &&
+  e.clientX <= canvasRect.right &&
+  e.clientY >= canvasRect.top &&
+  e.clientY <= canvasRect.bottom;
+
 
     setInsideStage(inside);
 
@@ -543,6 +599,39 @@ if (s.type === "line") {
 
 
   // --- END PART 1 ---
+ //---draw gloo wall---
+if (MODE === "CS") {
+  const drawGlooWall = (ctx, gloo) => {
+  const { x, y, rotation = 0 } = gloo;
+
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(rotation);
+
+  const width = 30;     // total wall width
+  const curve = 8;     // how much bend (lower = straighter)
+  const thickness = 8;
+
+  ctx.lineCap = "round";
+  ctx.lineWidth = thickness;
+
+  // glow
+  ctx.shadowColor = "#9fe7ff";
+  ctx.shadowBlur = 12;
+
+  ctx.strokeStyle = "#c9f2ff";
+
+  ctx.beginPath();
+
+  // left → mid curve → right
+  ctx.moveTo(-width/2, 0);
+  ctx.quadraticCurveTo(0, -curve, width/2, 0);
+
+  ctx.stroke();
+  ctx.restore();
+};
+}
+
   // ---------------- REDRAW ----------------
   useEffect(() => {
     if (!canvasRef.current) return;
@@ -550,7 +639,41 @@ if (s.type === "line") {
 
     ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
 
+
     const drawSmoothPath = (pts, color, w) => {
+
+
+/* =========================
+   GLOO WALL (CLASH SQUAD ONLY — PARKED)
+   ========================= */
+
+if (MODE === "CS") {
+
+  const drawGlooWall = (ctx, gloo) => {
+    const { x, y, rotation = 0 } = gloo;
+
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(rotation);
+
+    ctx.strokeStyle = "#cfe8ff";
+    ctx.lineWidth = 6;
+    ctx.lineCap = "round";
+
+    ctx.beginPath();
+    ctx.arc(0, 0, 22, Math.PI * 0.15, Math.PI * 0.85);
+    ctx.stroke();
+
+    ctx.restore();
+  };
+
+  currentPhase.utilities.forEach((u) => {
+    if (u.type === "gloo") {
+      drawGlooWall(ctx, u);
+    }
+  });
+}
+
       if (pts.length < 2) return;
       ctx.strokeStyle = color;
       ctx.lineWidth = w;
@@ -591,6 +714,7 @@ if (s.type === "line") {
     };
 
     const drawChevronHead = (a, b, color, w, velocity) => {
+
       const dx = b.x - a.x;
       const dy = b.y - a.y;
       const angle = Math.atan2(dy, dx);
@@ -807,6 +931,14 @@ ctx.shadowOffsetY = 0;
         }
       }
     });
+
+    /* ===== UTILITIES RENDER ===== */
+if (currentPhase.utilities) {
+  currentPhase.utilities.forEach((u) => {
+
+  });
+}
+
     ctx.globalAlpha = 1;
     ctx.shadowBlur = 0;
   }, [currentPhase]);
@@ -862,6 +994,62 @@ ctx.shadowOffsetY = 0;
     });
   };
 
+  const addUtility = (utility) => {
+  pushHistory();
+  setPhases((prev) => {
+    const updated = deepCopy(prev);
+    updated[currentPhaseIndex].utilities.push(utility);
+    return updated;
+  });
+};
+
+const updateUtility = (id, updater) => {
+  setPhases((prev) => {
+    const updated = deepCopy(prev);
+    const list = updated[currentPhaseIndex].utilities;
+
+    updated[currentPhaseIndex].utilities = list.map((u) =>
+      u.id === id ? (typeof updater === "function" ? updater(u) : updater) : u
+    );
+
+    return updated;
+  });
+};
+
+const deleteUtility = (id) => {
+  pushHistory();
+  setPhases((prev) => {
+    const updated = deepCopy(prev);
+    updated[currentPhaseIndex].utilities =
+      updated[currentPhaseIndex].utilities.filter((u) => u.id !== id);
+    return updated;
+  });
+};
+
+const clearUtilitiesInPhase = () => {
+  pushHistory();
+  setPhases((prev) => {
+    const updated = deepCopy(prev);
+    updated[currentPhaseIndex].utilities = [];
+    return updated;
+  });
+};
+const spawnTestSmoke = () => {
+  const smoke = {
+    id: uid(),
+    type: "smoke",
+    variant: "smoke",
+    x: 500,
+    y: 300,
+    radius: 80,
+    color: "#4cc9ff",
+    opacity: 0.25
+  };
+
+  addUtility(smoke);
+};
+
+
   // ---------------- SAVE / LOAD ----------------
   const handleSave = () => {
     const blob = new Blob([JSON.stringify({ phases }, null, 2)], {
@@ -886,6 +1074,26 @@ ctx.shadowOffsetY = 0;
     };
     reader.readAsText(file);
   };
+  /* -------- TEMP GLOO TEST SPAWN -------- */
+useEffect(() => {
+  const t = setTimeout(() => {
+    setPhases(prev => {
+      const updated = deepCopy(prev);
+      updated[currentPhaseIndex].utilities.push({
+        id: uid(),
+        type: "gloo",
+        x: 500,
+        y: 300,
+        rotation: 0,
+        scale: 1
+      });
+      return updated;
+    });
+  }, 400);
+
+  return () => clearTimeout(t);
+}, []);
+
 
   // ---------------- RENDER (VALOPLANT FRAME) ----------------
   // ---------------- RENDER (VALOPLANT FRAME) ----------------
@@ -1072,6 +1280,34 @@ boxShadow: isMobile
         </div>
       </div>
 
+      {/* BOLT */}
+{/* BOLT SPAWN (TOP CENTER) */}
+<div
+  onClick={spawnBolt}
+  style={{
+    position: "absolute",
+    top: 12,
+    left: "50%",
+    transform: "translateX(-50%)",
+    width: 42,
+    height: 42,
+    borderRadius: 10,
+    background: "rgba(24,24,28,0.95)",
+    border: "1px solid #ff4d4d",
+    color: "#ff4d4d",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontSize: 18,
+    cursor: "pointer",
+    zIndex: 30,
+    userSelect: "none"
+  }}
+>
+  ☢
+</div>
+
+
      {/* MAP CONTROL STRIP (VALOPLANT-STYLE) */}
 <div
   data-ui-panel
@@ -1106,6 +1342,7 @@ boxShadow: isMobile
         >
           ↶
         </div>
+        
 
         {/* REDO */}
         <div
@@ -1167,6 +1404,12 @@ boxShadow: isMobile
           }}
         />
       )}
+      <UtilityLayer
+  utilities={currentPhase.utilities}
+  containerSize={containerSize}
+  updateUtility={updateUtility}
+/>
+
 
       <canvas
         ref={canvasRef}
@@ -1177,17 +1420,18 @@ boxShadow: isMobile
         onPointerUp={handlePointerUp}
         onPointerCancel={handlePointerUp}
         style={{
-          position: "absolute",
-          inset: 0,
-          width: "100%",
-          height: "100%",
-          touchAction: "none",
-          cursor:
-  !isMobile && tool
-    ? "none"
-    : "default"
+  position: "absolute",
+  inset: 0,
+  width: "100%",
+  height: "100%",
+  touchAction: "none",
+  pointerEvents: "auto",
+  cursor:
+    !isMobile && (tool === "pen" || tool === "eraser" || tool === "arrow" || tool === "path" || tool === "rect" || tool === "line" || tool === "dashed")
+      ? "none"
+      : "default"
+}}
 
-        }}
       />
 
       <PlayerLayer
