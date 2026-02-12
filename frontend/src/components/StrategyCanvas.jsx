@@ -224,7 +224,8 @@ useEffect(() => {
       prev.map((p) => ({
         ...p,
         players: [],
-        strokes: []
+        strokes: [],
+        utilities: []
       }))
     );
   };
@@ -961,6 +962,7 @@ if (currentPhase.utilities) {
       const updated = deepCopy(prev);
       updated[currentPhaseIndex].players = [];
       updated[currentPhaseIndex].strokes = [];
+      updated[currentPhaseIndex].utilities = [];
       return updated;
     });
   };
@@ -971,7 +973,8 @@ if (currentPhase.utilities) {
       prev.map((p) => ({
         ...p,
         players: [],
-        strokes: []
+        strokes: [],
+        utilities: []
       }))
     );
   };
@@ -993,6 +996,16 @@ if (currentPhase.utilities) {
       return updated;
     });
   };
+
+  const clearUtilitiesInPhase = () => {
+  pushHistory();
+  setPhases((prev) => {
+    const updated = deepCopy(prev);
+    updated[currentPhaseIndex].utilities = [];
+    return updated;
+  });
+};
+
 
   const addUtility = (utility) => {
   pushHistory();
@@ -1026,14 +1039,6 @@ const deleteUtility = (id) => {
   });
 };
 
-const clearUtilitiesInPhase = () => {
-  pushHistory();
-  setPhases((prev) => {
-    const updated = deepCopy(prev);
-    updated[currentPhaseIndex].utilities = [];
-    return updated;
-  });
-};
 const spawnTestSmoke = () => {
   const smoke = {
     id: uid(),
@@ -1152,6 +1157,7 @@ boxShadow: isMobile
       <Toolbar
   isMobile={isMobile}
   setTool={setTool}
+  clearUtilitiesInPhase={clearUtilitiesInPhase}
   clearAllPhases={clearAllPhases}
   clearCurrentPhase={clearCurrentPhase}
   clearPlayersInPhase={clearPlayersInPhase}

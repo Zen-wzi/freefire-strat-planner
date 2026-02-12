@@ -35,6 +35,7 @@ export default function Toolbar({
   isMobile,
   setTool,
   clearAllPhases,
+  clearUtilitiesInPhase,
   clearCurrentPhase,
   clearPlayersInPhase,
   clearStrokesInPhase,
@@ -360,7 +361,7 @@ export default function Toolbar({
           }}
         >
           <button {...pressHandlers} {...(!isMobile ? desktopHoverHandlers : {})} style={{ ...baseBtn, ...(!isMobile ? desktopHoverPop : {}), flex: 1 }} onClick={clearPlayersInPhase}>👤</button>
-          <button {...pressHandlers} {...(!isMobile ? desktopHoverHandlers : {})} style={{ ...baseBtn, ...(!isMobile ? desktopHoverPop : {}), flex: 1 }}>💥</button>
+          <button {...pressHandlers} {...(!isMobile ? desktopHoverHandlers : {})} style={{ ...baseBtn, ...(!isMobile ? desktopHoverPop : {}), flex: 1 }} onClick={clearUtilitiesInPhase}>💥</button>
           <button {...pressHandlers} {...(!isMobile ? desktopHoverHandlers : {})} style={{ ...baseBtn, ...(!isMobile ? desktopHoverPop : {}), flex: 1 }} onClick={clearStrokesInPhase}>✏️</button>
           <button {...pressHandlers} {...(!isMobile ? desktopHoverHandlers : {})} style={{ ...baseBtn, ...(!isMobile ? desktopHoverPop : {}), flex: 1 }}>📝</button>
           <button {...pressHandlers} {...(!isMobile ? desktopHoverHandlers : {})} style={{ ...baseBtn, ...(!isMobile ? desktopHoverPop : {}), flex: 1 }}>🖼</button>
