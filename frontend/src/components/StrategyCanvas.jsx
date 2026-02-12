@@ -1472,13 +1472,18 @@ boxShadow: isMobile
     aspectRatio: "1 / 1",
     maxHeight: "100%",
     pointerEvents: "auto",
-    zIndex: 3
+    zIndex: 2
   }}
 >
   
 </div>
 
-
+ <UtilityLayer
+  utilities={currentPhase.utilities}
+  containerSize={containerSize}
+  updateUtility={updateUtility}
+  deleteUtility={deleteUtility}
+/>
 
       <canvas
         ref={canvasRef}
@@ -1494,6 +1499,7 @@ boxShadow: isMobile
   width: "100%",
   height: "100%",
   touchAction: "none",
+  zIndex: 3,
   pointerEvents: tool ? "auto" : "none",
   cursor:
     !isMobile && (tool === "pen" || tool === "eraser" || tool === "arrow" || tool === "path" || tool === "rect" || tool === "line" || tool === "dashed")
@@ -1502,12 +1508,6 @@ boxShadow: isMobile
 }}
       />
 
-      <UtilityLayer
-  utilities={currentPhase.utilities}
-  containerSize={containerSize}
-  updateUtility={updateUtility}
-  deleteUtility={deleteUtility}
-/>
 
       <PlayerLayer
   players={currentPhase.players}
