@@ -275,7 +275,7 @@ useEffect(() => {
     const rect = canvasRef.current.getBoundingClientRect();
     return {
       x: ((e.clientX - rect.left) / rect.width) * 1000,
-      y: ((e.clientY - rect.top) / rect.height) * 600
+      y: ((e.clientY - rect.top) / rect.height) * 1000
     };
   };
 
@@ -298,7 +298,7 @@ useEffect(() => {
     const name = `${prefix}${nextNum}`;
 
     const baseX = 500;
-    const baseY = 300;
+    const baseY = 500;
 
     const jitter = () => (Math.random() - 0.5) * 40;
 
@@ -333,7 +333,7 @@ const spawnBolt = () => {
       id: uid(),
       type: "bolt",
       x: 500,
-      y: 300,
+      y: 500,
       radius: 40
     });
 
@@ -1040,7 +1040,7 @@ const spawnTestSmoke = () => {
     type: "smoke",
     variant: "smoke",
     x: 500,
-    y: 300,
+    y: 500,
     radius: 80,
     color: "#4cc9ff",
     opacity: 0.25
@@ -1083,7 +1083,7 @@ useEffect(() => {
         id: uid(),
         type: "gloo",
         x: 500,
-        y: 300,
+        y: 500,
         rotation: 0,
         scale: 1
       });
@@ -1193,19 +1193,68 @@ boxShadow: isMobile
         </div>
       </div>
 
-    {/* CENTER MAP ZONE */}
+   {/* CENTER MAP ZONE */}
 <div
   ref={stageRef}
   style={{
-  position: "relative",
-  flex: 1,
-  height: "100%",
-  marginLeft: isMobile ? 0 : 10,   // ← the visual gap
-  background:
-    "radial-gradient(1200px 600px at center, #1a1d24 0%, #0f1115 60%)"
-}}
+    position: "relative",
+    flex: 1,
+    height: "100%",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    background:
+      "radial-gradient(1200px 600px at center, #1a1d24 0%, #0f1115 60%)"
+  }}
 >
+  {/* ==== VIEWPORT (FINAL RENDER FRAME) ==== */}
+<div
+  id="viewport"
+ style={
+  isMobile
+    ? {
+        position: "relative",
+        width: "100%",
+        height: "100%",
+        maxWidth: "100%",
+        maxHeight: "100%",
+        aspectRatio: "1 / 1",
+        margin: "auto"
+      }
+    : {
+        position: "relative",
+        width: "92vh",
+        height: "92vh",
+        maxWidth: "100%",
+        maxHeight: "100%",
+        aspectRatio: "1 / 1"
+      }
+}
+>
+
+{/* ===== SQUARE MAP FRAME DESKTOP ONLY ===== */}
+<div
+  style={
+    isMobile
+      ? {
+          position: "relative",
+          width: "100%",
+          height: "100%"
+        }
+      : {
+          position: "relative",
+          width: "100%",
+          maxWidth: "100%",
+          height: "auto",
+          aspectRatio: "1 / 1",
+          maxHeight: "100%"
+        }
+  }
+>
+
+
   {isMobile && (
+
     <div
       style={{
         position: "absolute",
@@ -1392,29 +1441,49 @@ boxShadow: isMobile
       </div>
 
       {currentPhase.map && (
-        <div
-          style={{
-            position: "absolute",
-            inset: 0,
-            backgroundImage: `url('${currentPhase.map}')`,
-            backgroundRepeat: "no-repeat",
-            backgroundPosition: "center",
-            backgroundSize: "contain",
-            pointerEvents: "none"
-          }}
-        />
-      )}
-      <UtilityLayer
-  utilities={currentPhase.utilities}
-  containerSize={containerSize}
-  updateUtility={updateUtility}
+  <div
+  style={{
+    position: "absolute",
+    inset: 0,
+    top: "50%",
+    left: "50%",
+    transform: "translate(-50%, -50%)",
+    width: "100%",
+    height: "auto",
+    aspectRatio: "1 / 1",
+    maxHeight: "100%",
+    backgroundImage: `url('${currentPhase.map}')`,
+    backgroundRepeat: "no-repeat",
+    backgroundPosition: "center",
+    backgroundSize: "contain",
+    pointerEvents: "none"
+  }}
 />
+)}
+
+      <div
+  style={{
+    position: "absolute",
+    top: "50%",
+    left: "50%",
+    transform: "translate(-50%, -50%)",
+    width: "100%",
+    height: "auto",
+    aspectRatio: "1 / 1",
+    maxHeight: "100%",
+    pointerEvents: "auto",
+    zIndex: 3
+  }}
+>
+  
+</div>
+
 
 
       <canvas
         ref={canvasRef}
         width={1000}
-        height={600}
+        height={1000}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
@@ -1425,14 +1494,20 @@ boxShadow: isMobile
   width: "100%",
   height: "100%",
   touchAction: "none",
-  pointerEvents: "auto",
+  pointerEvents: tool ? "auto" : "none",
   cursor:
     !isMobile && (tool === "pen" || tool === "eraser" || tool === "arrow" || tool === "path" || tool === "rect" || tool === "line" || tool === "dashed")
       ? "none"
       : "default"
 }}
-
       />
+
+      <UtilityLayer
+  utilities={currentPhase.utilities}
+  containerSize={containerSize}
+  updateUtility={updateUtility}
+  deleteUtility={deleteUtility}
+/>
 
       <PlayerLayer
   players={currentPhase.players}
@@ -1526,7 +1601,8 @@ left: 0
 
   </div>
 )}
-
+    </div> {/* END VIEWPORT */}
+    </div> {/* END SQUARE MAP FRAME */}
     </div>
 
     {/* RIGHT PANEL (CHARACTERS) */}

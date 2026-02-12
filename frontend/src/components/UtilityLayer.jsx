@@ -3,97 +3,101 @@ import { useEffect, useRef } from "react";
 
 export default function UtilityLayer({
   utilities,
-  containerSize,
   updateUtility
 }) {
   const canvasRef = useRef(null);
   const layerRef = useRef(null);
 
-  const draggingRef = useRef(null);
-  const offsetRef = useRef({ x: 0, y: 0 });
+
+  const draggingId = useRef(null);
+  const offset = useRef({ x: 0, y: 0 });
+  const lastPointerRef = useRef({ x: 0, y: 0 });
+const [deletingId, setDeletingId] = useState(null);
+const FADE_MS = 160;
+
 
   /* ================= DRAW ================= */
   useEffect(() => {
     if (!canvasRef.current) return;
     const ctx = canvasRef.current.getContext("2d");
+    ctx.clearRect(0, 0, 1000, 1000);
+    const rect = canvasRef.current.getBoundingClientRect();
+const scaleX = rect.width / rect.height; 
 
-    ctx.clearRect(0, 0, 1000, 600);
 
-    if (!utilities?.length) return;
+    utilities?.forEach((u) => {
+  if (u.type !== "bolt") return;
 
-    utilities.forEach((u) => {
+  const cx = u.x;
+  const cy = u.y;
+  const r = u.radius || 40;
 
-  if (u.type === "bolt") {
-    const cx = u.x;
-    const cy = u.y;
-    const r = u.radius || 40;
+  const rect = canvasRef.current.getBoundingClientRect();
+  const scaleX = rect.width / rect.height;
 
-    ctx.save();
+  ctx.save();
 
-    // reset transform so circle never becomes oval
-    ctx.setTransform(1, 0, 0, 1, 0, 0);
+  // counter stretch so circle stays circle
+  ctx.translate(cx, cy);
+  ctx.scale(1 / scaleX, 1);
+  ctx.translate(-cx, -cy);
 
-    // gradient (light center → dark edge)
-    const grad = ctx.createRadialGradient(cx, cy, r * 0.15, cx, cy, r);
-    grad.addColorStop(0, "rgba(255,120,120,0.35)");
-    grad.addColorStop(0.4, "rgba(255,60,60,0.28)");
-    grad.addColorStop(0.75, "rgba(200,20,20,0.35)");
-    grad.addColorStop(1, "rgba(90,0,0,0.55)");
+  const grad = ctx.createRadialGradient(cx, cy, r * 0.15, cx, cy, r);
+  grad.addColorStop(0, "rgba(255,120,120,0.35)");
+  grad.addColorStop(0.4, "rgba(255,60,60,0.28)");
+  grad.addColorStop(0.75, "rgba(200,20,20,0.35)");
+  grad.addColorStop(1, "rgba(90,0,0,0.55)");
 
-    ctx.beginPath();
-    ctx.arc(cx, cy, r, 0, Math.PI * 2);
-    ctx.fillStyle = grad;
-    ctx.fill();
-    ctx.closePath();
+  ctx.beginPath();
+  ctx.arc(cx, cy, r, 0, Math.PI * 2);
+  ctx.fillStyle = grad;
+  ctx.fill();
 
-    // neon ring
-    ctx.beginPath();
-    ctx.arc(cx, cy, r, 0, Math.PI * 2);
-    ctx.lineWidth = 2;
-    ctx.strokeStyle = "#ff3b3b";
-    ctx.shadowColor = "#ff3b3b";
-    ctx.shadowBlur = 14;
-    ctx.stroke();
-    ctx.closePath();
+  ctx.beginPath();
+  ctx.arc(cx, cy, r, 0, Math.PI * 2);
+  ctx.lineWidth = 2;
+  ctx.strokeStyle = "#ff3b3b";
+  ctx.shadowColor = "#ff3b3b";
+  ctx.shadowBlur = 14;
+  ctx.stroke();
 
-    ctx.shadowBlur = 0;
-   ctx.restore();
-  }
-
+  ctx.restore();
 });
 
-}, [utilities]);
+  }, [utilities]);
 
-  /* ================= DRAG ENGINE ================= */
+  /* ================= UNIVERSAL DRAG ================= */
   useEffect(() => {
     const move = (e) => {
-      if (!draggingRef.current) return;
+      if (!draggingId.current) return;
       if (!layerRef.current) return;
 
       const rect = layerRef.current.getBoundingClientRect();
 
       const x =
-        ((e.clientX - rect.left) / rect.width) * 1000 - offsetRef.current.x;
+        ((e.clientX - rect.left) / rect.width) * 1000 - offset.current.x;
       const y =
-        ((e.clientY - rect.top) / rect.height) * 600 - offsetRef.current.y;
+        ((e.clientY - rect.top) / rect.height) * 1000 - offset.current.y;
 
-      updateUtility?.(draggingRef.current, (u) => ({
+      updateUtility?.(draggingId.current, (u) => ({
         ...u,
         x: Math.max(0, Math.min(1000, x)),
-        y: Math.max(0, Math.min(600, y))
+        y: Math.max(0, Math.min(1000, y))
       }));
     };
 
     const stop = () => {
-      draggingRef.current = null;
+      draggingId.current = null;
     };
 
-    window.addEventListener("mousemove", move);
-    window.addEventListener("mouseup", stop);
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", stop);
+    window.addEventListener("pointercancel", stop);
 
     return () => {
-      window.removeEventListener("mousemove", move);
-      window.removeEventListener("mouseup", stop);
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", stop);
+      window.removeEventListener("pointercancel", stop);
     };
   }, [updateUtility]);
 
@@ -104,52 +108,52 @@ export default function UtilityLayer({
       style={{
         position: "absolute",
         inset: 0,
-        zIndex: 3,
-        pointerEvents: "none" // IMPORTANT: do not block drawing tools
+        zIndex: 4,
+        pointerEvents: "none"
       }}
     >
-      {/* invisible drag handles */}
+      {/* DRAG HITBOX */}
       {utilities?.map((u) => {
         if (u.type !== "bolt") return null;
-
-        const left = (u.x / 1000) * containerSize.width;
-        const top = (u.y / 600) * containerSize.height;
 
         return (
           <div
             key={u.id}
-            onMouseDown={(e) => {
+            onPointerDown={(e) => {
+              if (!layerRef.current) return;
+
               const rect = layerRef.current.getBoundingClientRect();
 
-              draggingRef.current = u.id;
+              draggingId.current = u.id;
 
-              offsetRef.current = {
-                x:
-                  ((e.clientX - rect.left) / rect.width) * 1000 - u.x,
-                y:
-                  ((e.clientY - rect.top) / rect.height) * 600 - u.y
+              offset.current = {
+                x: ((e.clientX - rect.left) / rect.width) * 1000 - u.x,
+                y: ((e.clientY - rect.top) / rect.height) * 1000 - u.y
               };
 
+              e.currentTarget.setPointerCapture(e.pointerId);
               e.stopPropagation();
             }}
             style={{
               position: "absolute",
-              left: left - 45,
-              top: top - 45,
-              width: 90,
-              height: 90,
+              left: `${u.x / 10}%`,
+              top: `${u.y / 10}%`,
+              transform: "translate(-50%, -50%)",
+              width: 120,
+              height: 120,
+              borderRadius: "50%",
               cursor: "grab",
-              pointerEvents: "auto" // only bolt draggable, rest pass-through
+              pointerEvents: "auto"
             }}
           />
         );
       })}
 
-      {/* drawing layer */}
+      {/* CANVAS (PERFECT 1:1) */}
       <canvas
         ref={canvasRef}
         width={1000}
-        height={600}
+        height={1000}
         style={{
           position: "absolute",
           inset: 0,
@@ -161,4 +165,6 @@ export default function UtilityLayer({
     </div>
   );
 }
+
+
 
