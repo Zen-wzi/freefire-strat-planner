@@ -38,6 +38,30 @@ export default function UtilityLayer({
         ctx.globalAlpha = 0.25;
       }
 
+      if (u.type === "zone") {
+  const cx = u.x;
+  const cy = u.y;
+  const r = u.radius || 300;
+
+  const rect = canvasRef.current.getBoundingClientRect();
+  const scaleX = rect.width / rect.height;
+
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.scale(1 / scaleX, 1);
+  ctx.translate(-cx, -cy);
+
+  ctx.beginPath();
+  ctx.arc(cx, cy, r, 0, Math.PI * 2);
+  ctx.lineWidth = 3;
+  ctx.strokeStyle = "#00ffe1";
+  ctx.shadowColor = "#00ffe1";
+  ctx.shadowBlur = 18;
+  ctx.stroke();
+
+  ctx.restore();
+}
+
       // counter stretch so circle stays perfect
       ctx.translate(cx, cy);
       ctx.scale(1 / scaleX, 1);
