@@ -43,19 +43,10 @@ export default function StrategyCanvas() {
   const [penOpacity, setPenOpacity] = useState(1);
   const [teamMode, setTeamMode] = useState("ally"); // "ally" | "enemy"
   const MODE = "BR"; // BR = full map, CS = clash squad later
-  /* ================= ZONE STATE ================= */
-const [zoneLevel, setZoneLevel] = useState(0); // 0 = no zone
 
-  const ZONE_RADII = {
-  1: 420,
-  2: 360,
-  3: 300,
-  4: 240,
-  5: 190,
-  6: 140,
-  7: 95,
-  8: 60
-};
+  /* ================= ZONE STATE ================= */
+
+const [zonePos, setZonePos] = useState({ x: 500, y: 500 });
 
 
   const getCursorSize = () => {
@@ -104,6 +95,7 @@ const centerHoverStyle = {
     players: [],
     strokes: [],
     utilities: [],
+    zone: 0,
     undoStack: [],
     redoStack: []
   }));
@@ -145,12 +137,11 @@ useEffect(() => {
   };
 }, []);
 
+/* ================= ZONE KEYBOARD CONTROL ================= */
 useEffect(() => {
   const handleKey = (e) => {
-    // smoke test
-    if (e.key.toLowerCase() === "g") spawnTestSmoke();
 
-    // zone keys
+    // zone controls
     if (e.key === "1") setZoneLevel(1);
     if (e.key === "2") setZoneLevel(2);
     if (e.key === "3") setZoneLevel(3);
@@ -159,13 +150,12 @@ useEffect(() => {
     if (e.key === "6") setZoneLevel(6);
     if (e.key === "7") setZoneLevel(7);
     if (e.key === "8") setZoneLevel(8);
-    if (e.key === "0") setZoneLevel(0); // no zone
+    if (e.key === "0") setZoneLevel(0); // remove zone
   };
 
   window.addEventListener("keydown", handleKey);
   return () => window.removeEventListener("keydown", handleKey);
 }, []);
-
 
   // ---------------- RESIZE ----------------
   useEffect(() => {
@@ -301,6 +291,17 @@ useEffect(() => {
     };
   };
 
+  /* ================= SET ZONE ================= */
+const setZoneLevel = (z) => {
+  pushHistory();
+
+  setPhases(prev => {
+    const updated = deepCopy(prev);
+    updated[currentPhaseIndex].zone = z;
+    return updated;
+  });
+};
+
   const spawnCharacter = (charName) => {
   pushHistory();
   
@@ -340,32 +341,6 @@ useEffect(() => {
 };
 //---bolt---
 const spawnBolt = () => {
-  const setZone = (zoneNumber) => {
-  pushHistory();
-
-  setPhases(prev => {
-    const updated = deepCopy(prev);
-    const p = updated[currentPhaseIndex];
-
-    if (!p.utilities) p.utilities = [];
-
-    // remove existing zone
-    p.utilities = p.utilities.filter(u => u.type !== "zone");
-
-    if (zoneNumber === 0) return updated; // "No zone"
-
-    p.utilities.push({
-      id: uid(),
-      type: "zone",
-      zone: zoneNumber,
-      x: 500,
-      y: 500,
-      radius: ZONE_RADII[zoneNumber] || 300
-    });
-
-    return updated;
-  });
-};
 
   const exists = currentPhase.utilities?.some(u => u.type === "bolt");
   if (exists) return;
@@ -982,35 +957,6 @@ ctx.shadowOffsetY = 0;
     });
 
     /* ===== UTILITIES RENDER ===== */
-    /* ================= ZONE RENDER ================= */
-if (zoneLevel > 0) {
-  const centerX = 500;
-  const centerY = 500;
-
-  // battleground style shrinking
-  const zoneRadii = [480, 420, 360, 300, 240, 180, 130, 90];
-  const r = zoneRadii[zoneLevel - 1] || 480;
-
-  ctx.save();
-
-  // outside dark
-  ctx.fillStyle = "rgba(0,0,0,0.55)";
-  ctx.beginPath();
-  ctx.rect(0, 0, 1000, 1000);
-  ctx.arc(centerX, centerY, r, 0, Math.PI * 2, true);
-  ctx.fill("evenodd");
-
-  // glowing ring
-  ctx.beginPath();
-  ctx.arc(centerX, centerY, r, 0, Math.PI * 2);
-  ctx.lineWidth = 4;
-  ctx.strokeStyle = "#4cc9ff";
-  ctx.shadowColor = "#4cc9ff";
-  ctx.shadowBlur = 18;
-  ctx.stroke();
-
-  ctx.restore();
-}
 
 if (currentPhase.utilities) {
   currentPhase.utilities.forEach((u) => {
@@ -1116,6 +1062,15 @@ const deleteUtility = (id) => {
     return updated;
   });
 };
+
+const updatePhaseZone = (z) => {
+  setPhases(prev => {
+    const updated = deepCopy(prev);
+    updated[currentPhaseIndex].zone = z;
+    return updated;
+  });
+};
+
 
 const spawnTestSmoke = () => {
   const smoke = {
@@ -1544,32 +1499,63 @@ boxShadow: isMobile
   }}
 />
 )}
-{/* ================= ZONE RENDER ================= */}
-{zoneLevel > 0 && (
-  <div
-    style={{
-      position: "absolute",
-      inset: 0,
-      pointerEvents: "none",
-      zIndex: 2,
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center"
-    }}
-  >
+
+{/* ================= ZONE ================= */}
+{currentPhase.zone > 0 && (() => {
+
+  // pixel-perfect battleground radii
+  const r = 480 - currentPhase.zone * 45;
+
+  return (
     <div
       style={{
-        width: `${100 - zoneLevel * 8}%`,
-        height: `${100 - zoneLevel * 8}%`,
-        borderRadius: "50%",
-        border: "3px solid rgba(0,180,255,0.9)",
-        boxShadow: "0 0 40px rgba(0,180,255,0.35)",
-        background: "rgba(0,180,255,0.08)",
-        transition: "all 220ms ease"
+        position: "absolute",
+        inset: 0,
+        zIndex: 2,
+        pointerEvents: "none"
       }}
-    />
-  </div>
-)}
+    >
+      <svg
+        width="100%"
+        height="100%"
+        viewBox="0 0 1000 1000"
+        preserveAspectRatio="xMidYMid meet"
+        style={{
+          position: "absolute",
+          inset: 0
+        }}
+      >
+        {/* mask = safe zone hole */}
+        <defs>
+          <mask id="zoneMask">
+            <rect x="0" y="0" width="1000" height="1000" fill="white" />
+            <circle cx="500" cy="500" r={r} fill="black" />
+          </mask>
+        </defs>
+
+        {/* outside blue */}
+        <rect
+          x="0"
+          y="0"
+          width="1000"
+          height="1000"
+          fill="rgba(0,120,255,0.18)"
+          mask="url(#zoneMask)"
+        />
+
+        {/* zone outline */}
+        <circle
+          cx="500"
+          cy="500"
+          r={r}
+          fill="none"
+          stroke="rgba(0,180,255,0.95)"
+          strokeWidth="4"
+        />
+      </svg>
+    </div>
+  );
+})()}
 
 
       <div
