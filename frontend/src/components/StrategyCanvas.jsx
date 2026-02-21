@@ -3,6 +3,7 @@ import { useRef, useState, useEffect } from "react";
 import PlayerLayer from "./PlayerLayer";
 import Toolbar from "./Toolbar";
 import UtilityLayer from "./UtilityLayer";
+import ZoneSelector from "./ZoneSelector";
 
 const deepCopy = (v) => JSON.parse(JSON.stringify(v));
 const uid = () => Math.random().toString(36).slice(2);
@@ -29,6 +30,7 @@ export default function StrategyCanvas() {
 
   const [cursorCSS, setCursorCSS] = useState(null);
   const [insideStage, setInsideStage] = useState(false);
+  const [zoneUIOpen, setZoneUIOpen] = useState(false);
 
   const [isMobile, setIsMobile] = useState(false);
   const [containerSize, setContainerSize] = useState({ width: 1000, height: 600 });
@@ -300,6 +302,30 @@ const setZoneLevel = (z) => {
     updated[currentPhaseIndex].zone = z;
     return updated;
   });
+};
+
+const setZoneUI = (z) => {
+  pushHistory();
+  setPhases(prev => {
+    const updated = deepCopy(prev);
+    updated[currentPhaseIndex].zone = z;
+    return updated;
+  });
+};
+
+const toggleZoneMobile = () => {
+  const current = currentPhase.zone;
+
+  // if no zone → activate zone 1
+  if (current === 0) {
+    setZoneUI(1);
+    setZoneUIOpen(true);
+    return;
+  }
+
+  // if already active → remove zone completely
+  setZoneUI(0);
+  setZoneUIOpen(false);
 };
 
   const spawnCharacter = (charName) => {
@@ -1343,6 +1369,67 @@ boxShadow: isMobile
           ⚙️
         </div>
 
+          {/*mobile zone button*/}
+  <div
+    onClick={() => {
+      if (currentPhase.zone === 0) {
+        setZoneUI(1);
+        setZoneUIOpen(true);
+      } else {
+        setZoneUI(0);
+        setZoneUIOpen(false);
+      }
+    }}
+    style={{
+      position: "absolute",
+      top: 60,
+      left: 12,
+      width: 42,
+      height: 42,
+      borderRadius: 10,
+      background: currentPhase.zone
+        ? "rgba(0,140,255,0.9)"
+        : "rgba(24,24,28,0.95)",
+      border: currentPhase.zone
+        ? "1px solid #4cc9ff"
+        : "1px solid #2a2f3a",
+      color: currentPhase.zone ? "#4cc9ff" : "#cfd6e4",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      fontSize: 18,
+      zIndex: 40
+    }}
+  >
+    🌐
+  </div>
+{/* MOBILE ZONE EXPANDABLE */}
+{zoneUIOpen && currentPhase.zone > 0 && (
+  <div
+    style={{
+  position: "absolute",
+  top: 110,
+  left: 18,
+  padding: "14px 12px",
+  borderRadius: 14,
+  background: "rgba(18,18,22,0.96)",
+  border: "1px solid #2a2f3a",
+  zIndex: 60,
+  display: "flex",
+  flexDirection: "column",
+  alignItems: "center",
+  backdropFilter: "blur(6px)"
+}}
+  >
+    <ZoneSelector
+      zone={currentPhase.zone}
+      setZone={setZoneUI}
+      isMobile={true}
+      hideZero={true}   // 👈 IMPORTANT
+    />
+  </div>
+)}
+
         {/* SAVE */}
         <div
         data-ui-button
@@ -1511,7 +1598,7 @@ boxShadow: isMobile
       style={{
         position: "absolute",
         inset: 0,
-        zIndex: 2,
+        zIndex: 1,
         pointerEvents: "none"
       }}
     >
@@ -1574,6 +1661,7 @@ boxShadow: isMobile
 >
   
 </div>
+
 
  <UtilityLayer
   utilities={currentPhase.utilities}

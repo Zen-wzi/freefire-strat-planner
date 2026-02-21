@@ -364,7 +364,14 @@ export default function Toolbar({
           <button {...pressHandlers} {...(!isMobile ? desktopHoverHandlers : {})} style={{ ...baseBtn, ...(!isMobile ? desktopHoverPop : {}), flex: 1 }} onClick={clearUtilitiesInPhase}>💥</button>
           <button {...pressHandlers} {...(!isMobile ? desktopHoverHandlers : {})} style={{ ...baseBtn, ...(!isMobile ? desktopHoverPop : {}), flex: 1 }} onClick={clearStrokesInPhase}>✏️</button>
           <button {...pressHandlers} {...(!isMobile ? desktopHoverHandlers : {})} style={{ ...baseBtn, ...(!isMobile ? desktopHoverPop : {}), flex: 1 }}>📝</button>
-          <button {...pressHandlers} {...(!isMobile ? desktopHoverHandlers : {})} style={{ ...baseBtn, ...(!isMobile ? desktopHoverPop : {}), flex: 1 }}>🖼</button>
+          <button
+  {...pressHandlers}
+  {...(!isMobile ? desktopHoverHandlers : {})}
+  style={{ ...baseBtn, ...(!isMobile ? desktopHoverPop : {}), flex: 1 }}
+  onClick={() => setZoneUI(0)}
+>
+  🌐
+</button>
 
         </div>
       </div>
