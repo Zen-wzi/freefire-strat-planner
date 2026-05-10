@@ -39,6 +39,12 @@ jobs:
       - name: Build Next.js app
         run: npm run build
 
+      - name: Check build output
+        run: ls -la
+        
+      - name: Check out folder
+        run: ls -la out
+        
       - name: Upload static files
         uses: actions/upload-pages-artifact@v3
         with:
