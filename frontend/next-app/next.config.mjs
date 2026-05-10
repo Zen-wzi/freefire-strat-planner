@@ -4,6 +4,8 @@ const nextConfig = {
   images: {
     unoptimized: true,
   },
+  basePath: '/freefire-start-planner',
+  assetPrefix: '/freefire-start-planner/',
 }
 
-module.exports = nextConfig
+export default nextConfig
