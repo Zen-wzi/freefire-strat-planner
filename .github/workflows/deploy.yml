@@ -42,7 +42,7 @@ jobs:
       - name: Upload static files
         uses: actions/upload-pages-artifact@v3
         with:
-          path: frontend/next-app/out
+          path: ./frontend/next-app/out
 
   deploy:
     environment:
